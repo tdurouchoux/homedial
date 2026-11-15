@@ -38,8 +38,9 @@ class RainArc {
  public:
   static constexpr size_t MAX_RUNS = 6;
   void create(lv_obj_t *parent);
-  // No runs: no ring at all, not even the track (design ScreenWeather).
-  void set(const RainRun *runs, size_t n);
+  // `available`: the next-hour rain forecast is known. Then the track is shown even when the
+  // hour is dry (user, 2026-11-15; the design hid it); with no rain data there is no ring.
+  void set(const RainRun *runs, size_t n, bool available);
 
  protected:
   lv_obj_t *track_{nullptr};

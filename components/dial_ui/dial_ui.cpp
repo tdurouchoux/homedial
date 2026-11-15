@@ -124,7 +124,10 @@ void DialUi::set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor
 void DialUi::load_forecast(JsonVariantConst rows) {
   this->forecast_pending_ = false;
   if (!rows.is<JsonArrayConst>()) {
-    ESP_LOGW(TAG, "Forecast response is not a list; check the response_template (contract.md §6)");
+    std::string raw;
+    serializeJson(rows, raw);
+    ESP_LOGW(TAG, "Forecast response is not a list; check the response_template (contract.md §6). Got: %.200s",
+             raw.c_str());
     return;
   }
   this->forecast_.clear();
@@ -143,7 +146,9 @@ void DialUi::load_forecast(JsonVariantConst rows) {
   this->forecast_loaded_ = true;
   this->forecast_loaded_ms_ = millis();
   this->forecast_dirty_ = true;
-  ESP_LOGD(TAG, "Forecast: %u hours", static_cast<unsigned>(this->forecast_.size()));
+  ESP_LOGI(TAG, "Forecast received: %u hours", static_cast<unsigned>(this->forecast_.size()));
+  if (this->forecast_.empty())
+    ESP_LOGW(TAG, "The forecast list is empty: does the weather entity support hourly forecasts?");
 }
 
 void DialUi::forecast_request_failed(const std::string &error) {
@@ -164,14 +169,22 @@ void DialUi::maybe_request_forecast_(bool force) {
   if (!this->has_weather_ || !this->online_last_)
     return;
   uint32_t now = millis();
-  if (this->forecast_pending_ && now - this->forecast_requested_ms_ < FORECAST_TIMEOUT_MS)
-    return;
+  if (this->forecast_pending_) {
+    if (now - this->forecast_requested_ms_ < FORECAST_TIMEOUT_MS)
+      return;
+    // No on_success / on_error at all: Home Assistant did not run the action.
+    ESP_LOGW(TAG, "No answer to the forecast request after %u s. Check that \"Allow the device to perform "
+                  "Home Assistant actions\" is on for this device in HA (ESPHome integration options), and the "
+                  "HA log / repairs for a rejected weather.get_forecasts call.",
+             static_cast<unsigned>(FORECAST_TIMEOUT_MS / 1000));
+    this->forecast_pending_ = false;
+  }
   bool stale = !this->forecast_loaded_ || now - this->forecast_loaded_ms_ >= FORECAST_EVERY_MS;
   if (!force && !stale)
     return;
   this->forecast_pending_ = true;
   this->forecast_requested_ms_ = now;
-  ESP_LOGD(TAG, "Requesting the hourly forecast");
+  ESP_LOGI(TAG, "Requesting the hourly forecast (weather.get_forecasts)");
   this->forecast_request_trigger_.trigger();
 }
 
@@ -181,7 +194,9 @@ void DialUi::refresh_weather_() {
   int64_t now = this->now_epoch_();
   RainRun runs[RainArc::MAX_RUNS];
   size_t n = now >= 0 ? rain_runs(this->rain_, now, runs, RainArc::MAX_RUNS) : 0;
-  this->weather_screen_.update(this->outdoor_temp_, this->condition_, runs, n, this->online_last_);
+  // Known = slots parsed, a reference time, and not older than the forecast's own hour.
+  bool rain_known = now >= 0 && this->rain_.valid() && now - this->rain_.ref_epoch < RainForecast::HORIZON_MIN * 60;
+  this->weather_screen_.update(this->outdoor_temp_, this->condition_, runs, n, rain_known, this->online_last_);
   if (this->forecast_dirty_) {  // new rows: redraw the strip (it keeps its focus)
     this->forecast_dirty_ = false;
     size_t first = now >= 0 ? forecast_first(this->forecast_.data(), this->forecast_.size(), now) : 0;

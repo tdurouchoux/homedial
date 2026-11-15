@@ -93,7 +93,7 @@ IAQ thresholds (OK up to 100, WARN 101 to 200, ALERT above 200) follow the band 
 ## Weather
 
 - Source: the Météo-France integration in Home Assistant (current conditions, hourly forecast, Next rain sensor).
-- **Rain arc** (differs from `design/`, which shows rain left over 0 to 6 h): the ring is a timeline of the next 60 minutes from now. Rainy slots of Météo-France's 1-hour rain forecast are drawn as accent segments; no ring when the whole hour is dry or the rain forecast is unavailable for the location.
+- **Rain arc** (differs from `design/`, which shows rain left over 0 to 6 h): the ring is a timeline of the next 60 minutes from now. Rainy slots of Météo-France's 1-hour rain forecast are drawn as accent segments; when the whole hour is dry the empty track is still shown (decided 2026-11-15 after testing; the design hid it); no ring at all when the rain forecast is unavailable (location not covered, or data older than an hour).
 - **Rain line** (decided 2026-11-15): "Rain now" when the current slot is rainy, "Rain in N min" when rain starts later in the hour, nothing when the hour is dry.
 - Condition words (12 characters or fewer): Sunny, Clear (night), Part cloudy, Windy, Cloudy, Fog, Exceptional, Rain, Heavy rain, Snow, Sleet, Hail, Storm. Temperature in whole degrees with "°".
 - Missing weather data shows `--` and OFFLINE in place of the condition word. The hourly forecast is fetched from Home Assistant on connect, every 30 minutes and when the Forecast page opens with older data.

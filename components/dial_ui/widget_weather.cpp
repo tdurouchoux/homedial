@@ -29,10 +29,12 @@ void RainArc::create(lv_obj_t *parent) {
   }
 }
 
-void RainArc::set(const RainRun *runs, size_t n) {
+void RainArc::set(const RainRun *runs, size_t n, bool available) {
   if (this->track_ == nullptr)
     return;
-  if (n == 0)
+  if (!available)
+    n = 0;
+  if (!available)
     lv_obj_add_flag(this->track_, LV_OBJ_FLAG_HIDDEN);
   else
     lv_obj_remove_flag(this->track_, LV_OBJ_FLAG_HIDDEN);

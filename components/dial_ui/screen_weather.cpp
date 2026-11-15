@@ -20,10 +20,11 @@ void ScreenWeather::create() {
   this->status_.create(this->screen_, WORD_TOP);
   this->rain_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK, RAIN_TOP);
   this->dots_.create(this->screen_);
-  this->update(NAN, "", nullptr, 0, false);
+  this->update(NAN, "", nullptr, 0, false, false);
 }
 
-void ScreenWeather::update(float temp, const std::string &condition, const RainRun *runs, size_t n, bool online) {
+void ScreenWeather::update(float temp, const std::string &condition, const RainRun *runs, size_t n, bool rain_known,
+                           bool online) {
   ConditionInfo ci;
   bool known = online && condition_info(condition.c_str(), &ci);
   bool has_temp = online && !std::isnan(temp);
@@ -51,7 +52,7 @@ void ScreenWeather::update(float temp, const std::string &condition, const RainR
   this->status_.set_visible(!complete);
 
   size_t shown = online ? n : 0;
-  this->arc_.set(runs, shown);
+  this->arc_.set(runs, shown, online && rain_known);
   char line[24];
   rain_line(runs, shown, line, sizeof line);
   lv_label_set_text(this->rain_, line);  // empty when dry: no "No rain" (design)

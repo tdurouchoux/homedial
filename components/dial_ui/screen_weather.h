@@ -13,8 +13,10 @@ namespace esphome::dial_ui {
 class ScreenWeather {
  public:
   void create();
-  // temp: NaN when missing; condition: HA string; runs: next-hour rain (n = 0: dry or unknown).
-  void update(float temp, const std::string &condition, const RainRun *runs, size_t n, bool online);
+  // temp: NaN when missing; condition: HA string; runs: next-hour rain (n = 0: dry);
+  // rain_known: the rain forecast is available (shows the empty track when dry).
+  void update(float temp, const std::string &condition, const RainRun *runs, size_t n, bool rain_known,
+              bool online);
   void set_dots(size_t count, size_t active) { this->dots_.set(count, active); }
   void animate_dots(size_t count, size_t from, size_t active) { this->dots_.animate(count, from, active); }
   void nudge(int32_t dx, int32_t dy) {
