@@ -1,0 +1,18 @@
+<!-- @dsCard group="Screens" height=290 width=560 subtitle="Alert and warning takeover" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"><style>*{box-sizing:border-box}
+body{margin:0;padding:20px 16px;background:var(--surface);color:var(--ink);font-family:var(--font-sans)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:12px;line-height:14px;color:var(--ink-muted);text-align:center}
+.disc{position:relative;width:240px;height:240px;border-radius:50%;background:var(--bg);overflow:hidden;flex:none}
+.disc>svg{position:absolute;left:0;top:0;width:240px;height:240px}
+.abs{position:absolute;left:0;width:240px;text-align:center;white-space:nowrap;margin:0}
+.trk{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}
+.ind{fill:none;stroke:var(--st);stroke-width:10;stroke-linecap:round}
+.s-ok{--st:var(--ok)}.s-warn{--st:var(--warn)}.s-danger{--st:var(--danger)}.s-off{--st:var(--ink-muted)}.s-acc{--st:var(--accent)}
+.stat{display:inline-flex;align-items:center;gap:6px;color:var(--st);font-size:14px;line-height:16px}
+.stat svg{flex:none}
+.dots{display:inline-flex;align-items:center;gap:8px;line-height:0}
+.dots i{display:block;width:8px;height:8px;border-radius:999px;background:var(--line)}
+.dots i.on{width:18px;background:var(--ink)}
+</style></head><body><div class="row"><div class="cell"><div class="disc"><svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="111" fill="none" stroke="var(--danger)" stroke-width="10"/><path d="M120 40 150 92H90Z" fill="var(--danger)" stroke="var(--danger)" stroke-width="8" stroke-linejoin="round"/><path d="M120 59V73" stroke="var(--bg)" stroke-width="5" stroke-linecap="round"/><circle cx="120" cy="82" r="3" fill="var(--bg)"/></svg><div class="abs title" style="top:102px;color:var(--ink);">PM2.5 high</div><div class="abs label" style="top:126px;color:var(--ink-muted);">Kitchen</div><div class="abs value-m" style="top:144px;color:var(--ink);">88 ug/m3</div><div class="abs body" style="top:180px;color:var(--ink-muted);">Press to mute</div></div><div class="cap">ALERT: ring pulses full to opa-disabled, 800 ms</div></div><div class="cell"><div class="disc"><svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="111" fill="none" stroke="var(--warn)" stroke-width="10"/><path d="M120 40 150 92H90Z" fill="var(--warn)" stroke="var(--warn)" stroke-width="8" stroke-linejoin="round"/><path d="M120 59V73" stroke="var(--bg)" stroke-width="5" stroke-linecap="round"/><circle cx="120" cy="82" r="3" fill="var(--bg)"/></svg><div class="abs title" style="top:102px;color:var(--ink);">Humidity high</div><div class="abs label" style="top:126px;color:var(--ink-muted);">Bedroom</div><div class="abs value-m" style="top:144px;color:var(--ink);">62 %</div><div class="abs body" style="top:180px;color:var(--ink-muted);">Press to dismiss</div></div><div class="cap">WARN: steady ring, no pulse</div></div></div></body></html>

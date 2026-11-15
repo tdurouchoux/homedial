@@ -1,0 +1,18 @@
+<!-- @dsCard group="Screens" height=300 width=560 subtitle="Weather now: rain left shown as an arc" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"><style>*{box-sizing:border-box}
+body{margin:0;padding:20px 16px;background:var(--surface);color:var(--ink);font-family:var(--font-sans)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{max-width:240px;font-size:12px;line-height:14px;color:var(--ink-muted);text-align:center}
+.disc{position:relative;width:240px;height:240px;border-radius:50%;background:var(--bg);overflow:hidden;flex:none}
+.disc>svg{position:absolute;left:0;top:0;width:240px;height:240px}
+.abs{position:absolute;left:0;width:240px;text-align:center;white-space:nowrap;margin:0}
+.trk{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}
+.ind{fill:none;stroke:var(--st);stroke-width:10;stroke-linecap:round}
+.s-ok{--st:var(--ok)}.s-warn{--st:var(--warn)}.s-danger{--st:var(--danger)}.s-off{--st:var(--ink-muted)}.s-acc{--st:var(--accent)}
+.stat{display:inline-flex;align-items:center;gap:6px;color:var(--st);font-size:14px;line-height:16px}
+.stat svg{flex:none}
+.dots{display:inline-flex;align-items:center;gap:8px;line-height:0}
+.dots i{display:block;width:8px;height:8px;border-radius:999px;background:var(--line)}
+.dots i.on{width:18px;background:var(--ink)}
+</style><body><div class="row"><div class="cell"><div class="disc"><svg viewBox="0 0 240 240"><path class="trk" d="M41.5 198.5A111 111 0 1 1 198.5 198.5"/><path class="ind s-acc" d="M41.5 198.5A111 111 0 0 1 41.5 41.5"/><circle cx="41.5" cy="41.5" r="10" fill="var(--ink)" stroke="var(--bg)" stroke-width="3"/></svg><div class="abs" style="top:34px;line-height:0"><svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(1 -6)"><path d="M13 36h20a7 7 0 0 0 .9-13.94A10 10 0 0 0 14.6 20.6 7.7 7.7 0 0 0 13 36Z"/></g><path d="M16 38l-2 6M24 38l-2 6M32 38l-2 6"/></svg></div><div class="abs value-xl" style="top:84px;color:var(--ink);">14°</div><div class="abs label" style="top:142px;color:var(--ink-muted);">Light rain</div><div class="abs label" style="top:172px;color:var(--ink);">Rain for 2 h</div><div class="abs" style="top:222px;line-height:0"><span class="dots"><i></i><i class="on"></i><i></i></span></div></div><div class="cap">Raining: the arc is the rain left, full ring = 6 h or more.</div></div><div class="cell"><div class="disc"><div class="abs" style="top:34px;line-height:0"><svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="8.5"/><path d="M38.0 24.0L43.0 24.0M33.9 33.9L37.4 37.4M24.0 38.0L24.0 43.0M14.1 33.9L10.6 37.4M10.0 24.0L5.0 24.0M14.1 14.1L10.6 10.6M24.0 10.0L24.0 5.0M33.9 14.1L37.4 10.6"/></svg></div><div class="abs value-xl" style="top:84px;color:var(--ink);">22°</div><div class="abs label" style="top:142px;color:var(--ink-muted);">Clear</div><div class="abs" style="top:222px;line-height:0"><span class="dots"><i></i><i class="on"></i><i></i></span></div></div><div class="cap">Dry: no arc, no line.</div></div></div></body></html>
