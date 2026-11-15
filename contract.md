@@ -23,7 +23,7 @@ Room display name (≤ 12 chars) and optional icon id live in the config, so eve
 
 ## 3. Inbound: HA → UI
 
-### 3.1 Wiring (recommended): `dial_ui` references sensors by id
+### 3.1 Wiring (decided): `dial_ui` references sensors by id
 
 ```yaml
 sensor:
@@ -48,7 +48,7 @@ dial_ui:
 
 In `to_code`, the component gets each `sensor::Sensor*` and calls `add_on_state_callback` on it (exists: `sensor/sensor.h:121`, `text_sensor/text_sensor.h:59`). Benefits: ids are checked by `esphome config`, no string `room`/`metric` arguments in lambdas, and the component sees which series exist before boot.
 
-**[decide]** This differs from `CLAUDE.md` ("`on_value` calls a generic method"). Both can coexist: the component also exposes the public setter below, so a YAML `on_value: lambda: id(ui).set_reading(...)` still works for odd cases (a value computed in YAML). Recommendation: `use_id` as the default, setter as escape hatch.
+Decided by the user (2026-11-15). The public setter below stays as an escape hatch for a value computed in YAML (`on_value: lambda: id(ui).set_reading(...)`), not as the normal path.
 
 ### 3.2 Public C++ surface (called by the component itself or YAML lambdas)
 
@@ -57,10 +57,9 @@ In `to_code`, the component gets each `sensor::Sensor*` and calls `add_on_state_
 void set_reading(Room room, Metric metric, float value);
 void set_power(float watts);
 void set_weather_now(float temp, const std::string &ha_condition, int rain_minutes, WeatherWarning warning);
-// History / forecast payloads from homeassistant.action responses (§5, §6).
-void load_history(SeriesId series, JsonArrayConst rows);
+// Forecast payload from a homeassistant.action response (§6).
 void load_forecast(JsonArrayConst rows);
-void history_request_failed(SeriesId series, const std::string &error);
+void forecast_request_failed(const std::string &error);
 ```
 
 `JsonArrayConst` is what `on_success` exposes: the action trigger passes `JsonObjectConst response` (`api/__init__.py`, `homeassistant_service_to_code`; `api/homeassistant_service.h:68`).
@@ -73,71 +72,34 @@ void history_request_failed(SeriesId series, const std::string &error);
 
 ### 3.4 Status (ok / warn / danger) is computed in the component
 
-From thresholds in the config (per metric, overridable per room), and for power from `contract_limit_w` (80 % / 100 %, design rule). YAML never sends a state. **[decide]** with the spec's open question on where thresholds live; this contract assumes `dial_ui:` YAML config until the user picks otherwise.
+From thresholds in the config (per metric, overridable per room), and for power from `contract_limit_w` (80 % / 100 %, design rule). YAML never sends a state. Thresholds and `contract_limit_w` live in the `dial_ui:` YAML block (decided): per-metric defaults, overridable per room; changing them needs a reflash/OTA.
 
 ## 4. Connectivity and staleness
 
 A value that does not change is never resent, so a timeout per sensor would wrongly mark stable sensors OFFLINE. Instead:
 
 - **Source of truth:** `api::global_api_server->is_connected_with_state_subscription()` (`api/api_server.h:215`; same as the YAML condition `api.connected: {state_subscription_only: true}`). This is true only for a client that subscribed to HA states (i.e. Home Assistant), not for a logs client.
-- The component polls it in `loop()`. On **true → false**: all HA-fed series are marked stale (OFFLINE, `--`). On **false → true**: values come back by themselves (HA resends), and the history backfill queue is re-run (§5).
+- The component polls it in `loop()`. On **true → false**: all HA-fed series are marked stale (OFFLINE, `--`). On **false → true**: values come back by themselves (HA resends) and the forecast is re-requested (§6).
 - `NaN` from one sensor marks only that series OFFLINE.
 
 ## 5. History
 
 Only series with `history: true` keep history (the spec's History pages: room metrics). Power has none for now (Energy page dropped).
 
+Decided by the user (2026-11-15): **device-only, RAM only, hourly over 24 h.** No backfill from Home Assistant, nothing written to flash. After a reboot or OTA the chart starts empty and fills over 24 h.
+
 ### 5.1 Model
 
-Per series, a fixed ring of **24 hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, mean, count}`, aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series. Wall clock comes from `time: - platform: homeassistant` (`homeassistant/time/`); until time is valid, history neither records nor requests.
+Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, mean, count}`, aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
 
-- **Live tail (device):** each live value updates the open bucket's running mean. When the hour rolls over, the bucket closes and the ring shifts.
-- **Backfill (Home Assistant):** closed buckets come from HA long-term statistics, so the chart is full right after boot, OTA or a disconnect, without writing anything to flash.
+- Each live value (not `NaN`) updates the open bucket's running mean.
+- On the hour rollover the open bucket closes and the ring shifts. An hour with no value (device off, HA disconnected, sensor `NaN` all hour) is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
+- Wall clock: `time: - platform: homeassistant` (`homeassistant/time/`). Until the time is valid nothing is recorded. **[decide later]** the PCF8563 RTC could provide time before HA connects (CLAUDE.md open question on RTC); not needed for this contract.
+- Because HA only sends on change, a stable sensor yields few callbacks. The component therefore also samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean.
 
-**[decide]** resolution: hourly (simple, matches HA's `hour` statistics). A 30-min chart (48 points) is possible with `period: 5minute` and averaging in the template; not proposed now.
+### 5.2 Not used: backfill from HA
 
-### 5.2 Backfill request / response
-
-The component cannot call `homeassistant.action` itself without touching API internals, so it fires a trigger declared in its config, and YAML performs the action:
-
-```yaml
-dial_ui:
-  on_history_request:            # variables: series (int), statistic_id (std::string), start (std::string, ISO UTC)
-    - homeassistant.action:
-        action: recorder.get_statistics
-        data_template:
-          statistic_ids: "{{ [sid] }}"
-          start_time: "{{ start }}"
-          period: hour
-          types: "{{ ['mean'] }}"
-        variables:
-          sid: return statistic_id;
-          start: return start;
-        capture_response: true
-        response_template: >-
-          [{%- for r in (response.statistics.values() | list | first or []) -%}
-          [{{ as_timestamp(r.start) | int }},{{ r.mean | round(2) }}]{{ ',' if not loop.last }}
-          {%- endfor -%}]
-        on_success:
-          - lambda: id(ui).load_history(series, response["response"]);
-        on_error:
-          - lambda: id(ui).history_request_failed(series, error);
-```
-
-Checked against the sources:
-- `capture_response`, `response_template`, `on_success` (with `response`), `on_error` (with `error`) exist; `capture_response` requires `on_success` (`api/__init__.py: _validate_response_config`). Trigger args are copied, so `series` survives until the response arrives (`synchronous=False` comment).
-- HA renders `response_template` with `response` = the action result and sends back `{"response": <rendered>}` as JSON (`esphome/manager.py: _handle_service_call_with_response`). Hence `response["response"]` in the lambda, a list of `[epoch, mean]`.
-- `recorder.get_statistics` exists, `supports_response: only`, fields `statistic_ids`, `start_time`, `end_time`, `period` (`5minute`/`hour`/...), `types` (`mean`, ...), returns `{"statistics": {id: [{start, end, mean, ...}]}}` (`recorder/services.yaml`, `recorder/services.py`).
-- It is an admin-only action, but the admin check only applies when the call has a `user_id` (`helpers/service.py: _async_admin_handler`); device calls carry none, so it passes.
-- Response size limit: one API message ≤ 32 KiB on ESP32 (`api/api_frame_helper.h: MAX_MESSAGE_SIZE`). 24 rows ≈ 0.5 KB.
-- Requires **"Allow the device to perform Home Assistant actions"** in the HA device options (`CONF_ALLOW_SERVICE_CALLS` in `manager.py`), otherwise HA raises a repair issue and the call is rejected.
-- **Not verified yet:** the exact `data_template` syntax for list values (`statistic_ids`, `types`) and whether `on_history_request` variables can be passed into `variables:` this way. Check with `uvx esphome config` when implementing; fall back to `data:` with a lambda if needed.
-
-**Rules:**
-- `statistic_id` defaults to the `entity_id` of the series' homeassistant sensor (resolved in the component's Python validation), or can be set explicitly per metric.
-- The component sends **one request at a time** (queue), on: time first valid, API reconnect, and an hour rollover after a gap. Not on page open: the ring is always current.
-- `load_history` replaces closed buckets older than the open one; it never overwrites the open bucket (HA statistics only exist for finished periods).
-- HA prerequisite: the sensor must have a `state_class` (e.g. `measurement`), otherwise HA keeps no long-term statistics and the response is empty. The device then shows only what it recorded live since boot (chart fills over time). Not an error.
+Checked and possible (`recorder.get_statistics` through `homeassistant.action` with `capture_response`), but not wanted. If it is ever added, it plugs in as a request trigger + `load_history()` without changing the model above.
 
 ## 6. Weather
 
@@ -147,9 +109,39 @@ Checked against the sources:
 | Condition | `weather.<x>` state (`sunny`, `rainy`, ...) | homeassistant `text_sensor` |
 | Rain remaining (min) | **[decide]** no standard HA entity; needs an HA template sensor or a provider entity | homeassistant `sensor` |
 | Weather warning | **[decide]** provider-specific entity | homeassistant `text_sensor` |
-| Hourly forecast (24 h) | `weather.get_forecasts` action, `type: hourly` | same request/response pattern as §5 (`on_forecast_request` trigger, `load_forecast`) |
+| Hourly forecast (24 h) | `weather.get_forecasts` action, `type: hourly` | request/response, see below |
 
-HA condition strings are mapped to the 6 design icons by one table in C++. The forecast is requested on connect and every 30 min; the payload is compacted by `response_template` to `[[epoch, "condition", temp], ...]` (24 rows).
+HA condition strings are mapped to the 6 design icons by one table in C++.
+
+**Forecast request/response.** The component cannot call `homeassistant.action` itself without touching API internals, so it fires a trigger declared in its config, and YAML performs the action:
+
+```yaml
+dial_ui:
+  on_forecast_request:
+    - homeassistant.action:
+        action: weather.get_forecasts
+        data:
+          entity_id: weather.home
+          type: hourly
+        capture_response: true
+        response_template: >-
+          [{%- for f in (response.values() | list | first).forecast[:24] -%}
+          [{{ as_timestamp(f.datetime) | int }},"{{ f.condition }}",{{ f.temperature | round(1) }}]{{ ',' if not loop.last }}
+          {%- endfor -%}]
+        on_success:
+          - lambda: id(ui).load_forecast(response["response"]);
+        on_error:
+          - lambda: id(ui).forecast_request_failed(error);
+```
+
+Checked against the sources:
+- `capture_response`, `response_template`, `on_success` (with `response`), `on_error` (with `error`) exist; `capture_response` requires `on_success` (`api/__init__.py: _validate_response_config`).
+- HA renders `response_template` with `response` = the action result and sends back `{"response": <rendered>}` as JSON (`esphome/manager.py: _handle_service_call_with_response`). Hence `response["response"]` in the lambda.
+- One API message is ≤ 32 KiB on ESP32 (`api/api_frame_helper.h: MAX_MESSAGE_SIZE`); 24 compact rows ≈ 1 KB.
+- Requires **"Allow the device to perform Home Assistant actions"** in the HA device options (`CONF_ALLOW_SERVICE_CALLS` in `manager.py`).
+- **Not verified yet:** the `weather.get_forecasts` response shape (`{entity_id: {forecast: [...]}}`) was not checked in HA source this session, and the template has not been run. Check in HA Developer tools > Actions when implementing.
+
+Requested on connect, every 30 min, and when the Forecast page opens with data older than 30 min. One request at a time.
 
 ## 7. Outbound: UI → device and UI → HA
 
@@ -172,11 +164,11 @@ Reserved shape, so the display phase does not block it: a `dial_ui` trigger `on_
 - ESPHome generates `lv_conf.h` from the widgets used in YAML and sets every other `LV_USE_*` to `0` (`lvgl/__init__.py: generate_lv_conf_h`). There is **no `chart` widget in ESPHome YAML** (`lvgl/widgets/` has none), so History needs `LV_USE_CHART=1` from `esphome: build_flags: [-DLV_USE_CHART=1]` (build flags are read and excluded from the "unused" list in the same function). Same for any other widget used only from C++, and for `LV_FONT_MONTSERRAT_*` unless custom fonts replace them.
 - The component gets the display/screen from `lvgl::LvglComponent` (`get_disp()`, `get_screen_active()`, `lvgl/lvgl_esphome.h`) via `cv.use_id`, and must set up after it (`LvglComponent` priority is `setup_priority::PROCESSOR`).
 
-## 9. Open items (to move into spec.md once decided)
+## 9. Decisions and open items
 
-1. `use_id` wiring vs `on_value` lambdas (§3.1).
-2. Where thresholds and the contract limit live (§3.4; also an open question in spec.md).
-3. History resolution: hourly, 24 h (§5.1).
-4. Do the HA sensors used for History have a `state_class`? (needed for backfill)
-5. Rain-remaining and weather-warning sources (§6).
-6. Battery/Wi-Fi icons on the Sensor page: which entities (Wi-Fi `wifi_signal` is local; the Dial has no documented battery gauge).
+Decided (2026-11-15): sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5).
+
+Open:
+1. Rain-remaining and weather-warning sources (§6).
+2. Battery/Wi-Fi icons on the Sensor page: which entities (Wi-Fi `wifi_signal` is local; the Dial has no documented battery gauge).
+3. RTC as a time source before HA connects (§5.1).

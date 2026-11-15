@@ -11,7 +11,7 @@ The UI look, components and input vocabulary are defined by the design system in
 ## Architecture
 - ESPHome owns: hardware drivers, Wi-Fi, HA API, OTA, entities, and LVGL init (`lvgl:` block with display and input devices only; no pages, widgets or fonts in YAML). ESPHome is only a data and command channel for the UI.
 - `components/dial_ui/` (local external component) owns: the **entire** UI (screens, navigation, styles, fonts, icons) built with raw `lv_*` calls on ESPHome's LVGL instance. Fonts are compiled into the component (e.g. `lv_font_conv` C files), never declared in ESPHome YAML.
-- HA -> UI: `platform: homeassistant` sensors/text_sensors whose `on_value` calls a generic method on the component (e.g. `id(ui).set_reading(room, metric, x)`), not one method per metric.
+- HA -> UI: `platform: homeassistant` sensors/text_sensors are referenced by id in the `dial_ui:` config (rooms -> metrics -> `sensor: <id>`); the component subscribes to them itself. `id(ui).set_reading(...)` from an `on_value` lambda is only an escape hatch. Details in `contract.md`.
 - UI -> HA: the component publishes to an ESPHome entity (template number/sensor/event); YAML triggers on it and calls `homeassistant.action`. Do not touch the API protocol internals.
 - UI -> device: local commands (e.g. screen brightness) call ESPHome entities such as the `display_backlight` light from the component or YAML.
 - Input: the encoder, its push button and touch are registered as LVGL input devices by ESPHome. The component only reads LVGL events (see "Input" in `design/README.md`); there is no second physical button.

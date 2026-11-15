@@ -64,9 +64,15 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 
 `design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy marked as a future page, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
 
+## Data decisions
+
+See `contract.md` for the ESPHome <-> UI contract.
+- **Thresholds and the power contract limit** are set in the `dial_ui:` YAML block (per-metric defaults, overridable per room).
+- **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
+
 ## Open questions
 
 - Home Assistant entities per room and metric, thresholds per metric, contract limit for the power ring, weather source (hourly forecast and rain remaining).
-- Where the weather city, the contract limit and the thresholds are configured: device settings, YAML or Home Assistant.
+- Where the weather city is configured.
 - Language (English with stock ASCII fonts, or French with Latin-1 custom fonts) and theme (dark only, or dark and day).
 - Whether an alert should also wake the screen.
