@@ -14,6 +14,7 @@ static constexpr uint32_t POWER_OFF_GRACE_MS = 1000;  // still running after thi
 struct SettingsPrefs {
   uint8_t luminosity;
   uint8_t volume;
+  uint16_t pitch;
 };
 static constexpr uint32_t REFRESH_MS = 1000;      // design: update readings at 1 Hz
 static constexpr uint32_t SETTINGS_HOLD_MS = 600;  // spec: 600 ms touch hold opens Settings
@@ -256,16 +257,20 @@ void DialUi::setup() {
   // Saved settings (ESPHome preferences, not HA).
   this->luminosity_ = adjust_spec(SettingsRow::LUMINOSITY).def;
   this->volume_ = adjust_spec(SettingsRow::BUZZER).def;
-  this->pref_ = global_preferences->make_preference<SettingsPrefs>(fnv1_hash("dial_ui_settings"));
+  this->pitch_ = adjust_spec(SettingsRow::BUZZER_PITCH).def;
+  // v2: pitch added (a new key, so an old 2-field record is not misread; it resets to defaults once).
+  this->pref_ = global_preferences->make_preference<SettingsPrefs>(fnv1_hash("dial_ui_settings_v2"));
   SettingsPrefs saved;
   if (this->pref_.load(&saved)) {
     this->luminosity_ = clamp_setting(adjust_spec(SettingsRow::LUMINOSITY), saved.luminosity);
     this->volume_ = clamp_setting(adjust_spec(SettingsRow::BUZZER), saved.volume);
+    this->pitch_ = clamp_setting(adjust_spec(SettingsRow::BUZZER_PITCH), saved.pitch);
   }
   this->apply_luminosity_(this->luminosity_);
+  this->apply_pitch_(this->pitch_);
 
   this->settings_screen_.create();
-  this->settings_screen_.set_values(this->luminosity_, this->volume_);
+  this->settings_screen_.set_values(this->luminosity_, this->volume_, this->pitch_);
   this->attach_events_(this->settings_screen_.screen());
   this->adjust_screen_.create();
   this->attach_events_(this->adjust_screen_.screen());
@@ -484,8 +489,9 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->load_(this->adjust_screen_.screen(), slide);
       break;
     case PageKind::SETTINGS:
-      // Leaving Adjust without saving (cancel) restores the saved luminosity.
+      // Leaving Adjust without saving (cancel) restores the saved luminosity and pitch.
       this->apply_luminosity_(this->luminosity_);
+      this->apply_pitch_(this->pitch_);
       if (prev.kind != PageKind::ADJUST)
         this->settings_screen_.set_focus(0);  // Settings opens on its first row
       this->settings_screen_.nudge(arrival_dy(slide, NUDGE_SETTINGS_PX));
@@ -812,6 +818,8 @@ void DialUi::adjust_event_cb_(lv_event_t *e) {
   self->adjust_screen_.set_value(v);
   if (static_cast<SettingsRow>(self->page_.index) == SettingsRow::LUMINOSITY)
     self->apply_luminosity_(self->adjust_screen_.value());
+  if (static_cast<SettingsRow>(self->page_.index) == SettingsRow::BUZZER_PITCH)
+    self->apply_pitch_(self->adjust_screen_.value());
 }
 
 void DialUi::adjust_by_(int delta_steps) {
@@ -824,10 +832,14 @@ void DialUi::adjust_by_(int delta_steps) {
   // Live preview, undone on cancel (design: never change a value live without a way to cancel).
   if (row == SettingsRow::LUMINOSITY)
     this->apply_luminosity_(this->adjust_value_);
+  if (row == SettingsRow::BUZZER_PITCH)
+    this->apply_pitch_(this->adjust_value_);  // the tick after the change previews it
 }
 
 void DialUi::open_adjust_(SettingsRow row) {
-  this->adjust_value_ = row == SettingsRow::LUMINOSITY ? this->luminosity_ : this->volume_;
+  this->adjust_value_ = row == SettingsRow::LUMINOSITY ? this->luminosity_
+                        : row == SettingsRow::BUZZER    ? this->volume_
+                                                        : this->pitch_;
   this->show_(Page{PageKind::ADJUST, 0, static_cast<size_t>(row)}, Slide::UP);
 }
 
@@ -835,12 +847,16 @@ void DialUi::save_settings_() {
   SettingsRow row = static_cast<SettingsRow>(this->page_.index);
   if (row == SettingsRow::LUMINOSITY)
     this->luminosity_ = this->adjust_value_;
-  else
+  else if (row == SettingsRow::BUZZER)
     this->volume_ = this->adjust_value_;
-  SettingsPrefs p{static_cast<uint8_t>(this->luminosity_), static_cast<uint8_t>(this->volume_)};
+  else
+    this->pitch_ = this->adjust_value_;
+  SettingsPrefs p{static_cast<uint8_t>(this->luminosity_), static_cast<uint8_t>(this->volume_),
+                  static_cast<uint16_t>(this->pitch_)};
   this->pref_.save(&p);
-  this->settings_screen_.set_values(this->luminosity_, this->volume_);
-  ESP_LOGI(TAG, "Saved: luminosity %d %%, buzzer volume %d %%", this->luminosity_, this->volume_);
+  this->settings_screen_.set_values(this->luminosity_, this->volume_, this->pitch_);
+  ESP_LOGI(TAG, "Saved: luminosity %d %%, buzzer volume %d %%, pitch %d Hz", this->luminosity_, this->volume_,
+           this->pitch_);
   this->show_(Page{PageKind::SETTINGS, 0, 0}, Slide::DOWN);
 }
 
@@ -848,6 +864,7 @@ void DialUi::activate_row_(SettingsRow row) {
   switch (row) {
     case SettingsRow::LUMINOSITY:
     case SettingsRow::BUZZER:
+    case SettingsRow::BUZZER_PITCH:
       this->open_adjust_(row);
       break;
     case SettingsRow::SCREEN_OFF:
@@ -934,6 +951,11 @@ void DialUi::wake_() {
     this->hold_released_ = false;
   }
   this->apply_luminosity_(this->current_luminosity_());
+}
+
+void DialUi::apply_pitch_(int hz) {
+  if (this->buzzer_ != nullptr)
+    this->buzzer_->update_frequency(static_cast<float>(hz));  // LEDC: changes the PWM frequency
 }
 
 void DialUi::tick_() {

@@ -25,6 +25,14 @@ int main() {
   CHECK(clamp_setting(lum, 0) == 10 && clamp_setting(lum, 120) == 100 && clamp_setting(lum, 47) == 45);
   CHECK(clamp_setting(lum, 48) == 50 && clamp_setting(vol, 55) == 60 && clamp_setting(vol, -3) == 0);
   CHECK(is_adjustable(SettingsRow::BUZZER) && !is_adjustable(SettingsRow::EXIT));
+  const AdjustSpec &pitch = adjust_spec(SettingsRow::BUZZER_PITCH);
+  CHECK(is_adjustable(SettingsRow::BUZZER_PITCH) && std::strcmp(pitch.unit, "Hz") == 0);
+  CHECK(pitch.min == 500 && pitch.max == 8000 && pitch.step == 500 && pitch.def == 1000);
+  CHECK(clamp_setting(pitch, 9000) == 8000 && clamp_setting(pitch, 1300) == 1500);
+  CHECK(std::strcmp(lum.unit, "%") == 0 && std::strcmp(vol.unit, "%") == 0);
+  char v[8];
+  std::snprintf(v, sizeof v, "%d%s", pitch.max, pitch.unit);
+  CHECK(std::strlen(v) <= 6);  // ListMenu: a row value is at most 6 characters
 
   DetentAccel a;
   CHECK(a.steps(1000, 1) == 1);

@@ -66,9 +66,10 @@ void ScreenSettings::create() {
   this->draw_();
 }
 
-void ScreenSettings::set_values(int luminosity, int volume) {
+void ScreenSettings::set_values(int luminosity, int volume, int pitch) {
   this->values_[static_cast<size_t>(SettingsRow::LUMINOSITY)] = luminosity;
   this->values_[static_cast<size_t>(SettingsRow::BUZZER)] = volume;
+  this->values_[static_cast<size_t>(SettingsRow::BUZZER_PITCH)] = pitch;
   this->draw_();
 }
 
@@ -98,7 +99,7 @@ void ScreenSettings::draw_() {
     if (k == 1) {
       int v = this->values_[s.row];
       if (v >= 0) {
-        lv_label_set_text_fmt(s.value, "%d%%", v);
+        lv_label_set_text_fmt(s.value, "%d%s", v, adjust_spec(static_cast<SettingsRow>(s.row)).unit);
         lv_obj_remove_flag(s.value, LV_OBJ_FLAG_HIDDEN);
         lv_obj_align(s.title, LV_ALIGN_LEFT_MID, ROW_PAD, 0);
       } else {

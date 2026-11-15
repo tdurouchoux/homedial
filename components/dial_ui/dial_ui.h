@@ -79,6 +79,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   int current_luminosity_() const;
   void update_sleep_();
   void tick_();
+  void apply_pitch_(int hz);
   void save_settings_();
   void activate_row_(SettingsRow row);
   void open_adjust_(SettingsRow row);
@@ -130,6 +131,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ESPPreferenceObject pref_;
   int luminosity_{100};  // saved settings (adjust_spec defaults until loaded)
   int volume_{50};
+  int pitch_{1000};
   int adjust_value_{0};  // value being edited on the Adjust page
   DetentAccel accel_;
   bool screen_off_state_{false};  // backlight off (sleep or Settings > Screen off)

@@ -49,8 +49,8 @@ Settings (above the carousel):
 
 ## Settings list
 
-Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power off, Exit.
-- **Luminosity** and **Buzzer vol.** (buzzer volume) open an Adjust page.
+Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Buzzer pitch, Screen off, Power off, Exit.
+- **Luminosity**, **Buzzer vol.** (buzzer volume) and **Buzzer pitch** open an Adjust page.
 - **Screen off** turns the backlight off; any input wakes it.
 - **Power off** drives HOLD low. This cuts power on battery only; on USB the device stays powered.
 - **Exit** closes Settings and returns to the page you left, same as a long press or swipe down.
@@ -58,6 +58,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
   - Luminosity 10 to 100 % in steps of 5, default 100 %. Buzzer volume 0 to 100 % in steps of 10, default 50 %. Both are saved on the device (ESPHome preferences) and survive a reboot. Luminosity previews live on the Adjust page; cancel restores it.
   - The buzzer plays a short tick on each encoder detent and press (not on touch), at the set volume; 0 % is silent. Volume maps to PWM duty on a cubic curve (100 % = 50 % duty, the loudest): a passive buzzer barely changes loudness between 50 % and ~10 % duty, so a linear map made the setting seem to do nothing. On the buzzer's Adjust page the tick previews the value being set.
   - Touch on the list: a tap on the focused row opens it; a tap on a neighbouring row scrolls it into focus (swipe up closes Settings, so it cannot scroll the list). On Adjust, dragging the ring changes the value; OK or a press saves; long press or swipe down cancels.
+  - **Buzzer pitch** (added 2026-11-15): a sixth row after Buzzer vol., 500 to 8000 Hz in steps of 500, default 1000 Hz (the original sound), shown as e.g. "2000Hz". The range reaches 8 kHz because M5Stack's own Dial examples tick at 8 kHz (`M5Dial.Speaker.tone(8000, 20)` in the M5Dial encoder example); M5Stack publishes no resonant frequency for the Dial's passive buzzer (GPIO3). Adding it reset the saved settings once (new preferences record).
   - List rows use the 16 px `body` size, not the design's 20 px `title` ("Luminosity" and "100%" overlapped at 20 px).
   - Settings opens on its first row. Screen off and Power off first return to the page you left.
   - Power off: if the device is still running 1 s after HOLD goes low (on USB), the screen turns off instead, and HOLD goes high again on the next input, so unplugging later does not cut power by surprise.

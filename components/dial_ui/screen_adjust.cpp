@@ -35,8 +35,7 @@ void ScreenAdjust::create() {
 
   this->name_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, NAME_TOP);
   this->value_label_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
-  lv_obj_t *unit = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, UNIT_TOP);
-  lv_label_set_text(unit, "%");
+  this->unit_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, UNIT_TOP);
 
   lv_obj_t *ok = lv_obj_create(this->screen_);
   lv_obj_remove_style_all(ok);
@@ -61,6 +60,7 @@ void ScreenAdjust::create() {
 void ScreenAdjust::bind(const AdjustSpec &spec, int value) {
   this->spec_ = spec;
   lv_label_set_text(this->name_, spec.name);
+  lv_label_set_text(this->unit_, spec.unit);
   lv_arc_set_range(this->arc_, 0, (spec.max - spec.min) / spec.step);
   this->set_value(value);
 }
