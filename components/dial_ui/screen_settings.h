@@ -22,8 +22,8 @@ class ScreenSettings {
   lv_obj_t *screen() const { return this->screen_; }
   // Settings opens from above: its content drops into place (rows will stagger in M7).
   void nudge(int32_t dy) {
-    nudge_in(this->title_, dy);
-    nudge_in(this->hint_, dy, 30);
+    nudge_in(this->title_, 0, dy);
+    nudge_in(this->hint_, 0, dy, 30);
   }
 
  protected:

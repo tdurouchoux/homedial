@@ -18,8 +18,13 @@ class ScreenSensor {
   // from 0 to the value; `dots_from` (an index, or SIZE_MAX) makes the dots glide from there.
   void bind(const Room &room, size_t room_index, size_t index, bool online, size_t dots_from = SIZE_MAX);
   void update(const Room &room, bool online, bool animate);
-  // Arrival from a vertical move: the hero value eases in from `dy` px.
-  void nudge_value(int32_t dy) { nudge_in(this->value_, dy); }
+  // Arrival nudge: vertical moves nudge the value; sideways moves (metric to metric) nudge
+  // the metric name, value and unit (the room line stays: same room).
+  void nudge(int32_t dx, int32_t dy) {
+    nudge_in(this->metric_, dx, 0);
+    nudge_in(this->value_, dx, dy);
+    nudge_in(this->unit_, dx, 0, dx != 0 ? 30 : 0);
+  }
   bool is_bound_to(size_t room_index, size_t index) const {
     return this->room_index_ == room_index && this->index_ == index;
   }

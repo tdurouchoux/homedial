@@ -12,16 +12,25 @@ static const char *const TAG = "dial_ui";
 static constexpr uint32_t REFRESH_MS = 1000;      // design: update readings at 1 Hz
 static constexpr uint32_t SETTINGS_HOLD_MS = 600;  // spec: 600 ms touch hold opens Settings
 static constexpr int32_t HOLD_SLOP_PX = 12;        // a hold that moves further is a drag, not a hold
-// Vertical arrival nudges (spec.md): content moves the way the finger went.
-static constexpr int32_t NUDGE_VALUE_PX = 12;      // Sensor hero value
-static constexpr int32_t NUDGE_ROOM_PX = 8;        // Room readings
-static constexpr int32_t NUDGE_SETTINGS_PX = 16;   // Settings content
+// Arrival nudges (spec.md): content arrives moving the way the finger went.
+static constexpr int32_t NUDGE_VALUE_PX = 12;      // Sensor hero value (vertical)
+static constexpr int32_t NUDGE_ROOM_PX = 8;        // Room readings (vertical)
+static constexpr int32_t NUDGE_SETTINGS_PX = 16;   // Settings content (vertical)
+static constexpr int32_t NUDGE_SIDE_PX = 12;       // sideways: room to room, metric to metric
 
 // Swipe up (Slide::UP) moves content up, so it arrives from below (+dy); down arrives from above.
 static int32_t arrival_dy(Slide slide, int32_t px) {
   if (slide == Slide::UP)
     return px;
   if (slide == Slide::DOWN)
+    return -px;
+  return 0;
+}
+// Swipe left / turn clockwise (Slide::LEFT, next) moves content left: it arrives from the right.
+static int32_t arrival_dx(Slide slide, int32_t px) {
+  if (slide == Slide::LEFT)
+    return px;
+  if (slide == Slide::RIGHT)
     return -px;
   return 0;
 }
@@ -167,7 +176,7 @@ void DialUi::show_(const Page &page, Slide slide) {
         scr.animate_dots(this->rooms_.size(), prev.room, page.room);
       else
         scr.set_dots(this->rooms_.size(), page.room);
-      scr.nudge_slots(arrival_dy(slide, NUDGE_ROOM_PX));
+      scr.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_ROOM_PX));
       this->load_(scr.screen(), slide);
       break;
     }
@@ -177,7 +186,7 @@ void DialUi::show_(const Page &page, Slide slide) {
       bool sibling = prev.kind == PageKind::SENSOR && prev.room == page.room;
       scr->bind(this->rooms_[page.room], page.room, page.index, this->online_last_,
                 sibling ? prev.index : SIZE_MAX);
-      scr->nudge_value(arrival_dy(slide, NUDGE_VALUE_PX));
+      scr->nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_VALUE_PX));
       this->load_(scr->screen(), slide);
       break;
     }
