@@ -1,4 +1,4 @@
-Adjust edits one value (brightness, alert limit) by turning the encoder; the whole ring becomes the slider.
+Adjust edits one value (luminosity, buzzer volume, alert limit) by turning the encoder; the whole ring becomes the slider.
 
 Consumer provides: the setting name, its range and step, and the current value.
 

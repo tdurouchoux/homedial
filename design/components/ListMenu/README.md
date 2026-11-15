@@ -1,4 +1,4 @@
-The ListMenu is the settings list the encoder scrolls: three rows visible, the focused one in the middle.
+The ListMenu is the settings list the encoder scrolls: three rows visible, the focused one in the middle. Rows can be a value editor (opens Adjust) or an action (for example Screen off, Power off, Exit).
 
 Consumer provides: row labels (12 characters or fewer) and, per row, a current value of at most 6 characters.
 
