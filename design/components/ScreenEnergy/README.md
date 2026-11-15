@@ -1,3 +1,5 @@
+> **Future page, not built.** Energy history is out of scope for now because the device would have to store the data. `spec.md` has no Energy page. Kept here for later.
+
 Energy shows today's consumption: the total, the 24 hourly bars, and the change against yesterday.
 
 Consumer provides: today's total in kWh, 24 hourly values (not-yet-reached hours empty), yesterday's total for the delta, optionally a cost.

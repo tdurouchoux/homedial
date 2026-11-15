@@ -45,19 +45,19 @@ For the value editor keep the knob: set its colour to `DIALED_INK`, pad 4, and l
 ## Encoder
 Put every focusable object in an `lv_group_t`, assign it with `lv_indev_set_group`, and use `LV_INDEV_TYPE_ENCODER`. A list row is focusable; pressing it enters edit mode (`lv_group_set_editing`), turning changes the value, pressing again leaves. Apply the focused and edited looks with `LV_STATE_FOCUSED` and `LV_STATE_EDITED` styles.
 
-Single button: the encoder push is the only required button. `LV_EVENT_CLICKED` (short press, under 600 ms) selects. For back, send `LV_EVENT_LONG_PRESSED` (600 ms, set with `lv_indev_set_long_press_time` on the encoder indev) to one handler that pops a screen, cancels an edit or scrub, or at the top level opens settings. In ESPHome the push is a `binary_sensor` with `on_click` (`min_length`/`max_length`) to tell short from long. An optional second button just calls the same back handler.
+Single button: the encoder push is the only required button. `LV_EVENT_CLICKED` (short press, under 600 ms) selects. For back, send `LV_EVENT_LONG_PRESSED` (600 ms, set with `lv_indev_set_long_press_time` on the encoder indev) to one handler that pops a screen, cancels an edit or scrub, or at the top level opens settings. Swipe down at the top level does the same. In ESPHome the push is a `binary_sensor` with `on_click` (`min_length`/`max_length`) to tell short from long. An optional second button just calls the same back handler.
 
 ## Performance
 - No shadows, no blur, no gradients, no image recolour (weather icons are a font, see below); they cost frame time on a small MCU.
 - Use `LV_DISPLAY_RENDER_MODE_PARTIAL` with a buffer of at least 1/10 of the screen. Update readings at 1 Hz, not per sample.
 - Chart: at most 60 points, `lv_chart_set_type(LV_CHART_TYPE_LINE)`, series line width 2, point radius 0 except the last point. Gridlines use `DIALED_TRACK`.
 - Reuse one `lv_style_t` per token role (`ring`, `status`, `row`, `row_focused`, ...) and add it to many objects, rather than setting local styles.
-- Dim the panel to 30% after 30 s without input; wake on any input, and wake on an ALERT.
+- Dim the panel to 30% after 30 s without input and turn the backlight off after 60 s; wake on any input (the waking input is not acted on). Alerts do not wake the screen.
 
 ## Weather icons
 Ship the six conditions (clear, part cloudy, cloudy, rain, snow, storm) as one icon font, not as images: draw them as 48 px SVG outlines with a 3 px stroke, convert to a TTF (Fontello, IcoMoon or fontforge), then run `lv_font_conv` at 48 and 32 px, 4 bpp, one glyph per condition in the private-use area (`-r 0xE000-0xE005`). Show a glyph in an `lv_label` and colour it with the text colour (`DIALED_INK`), so a theme change needs no assets. Keep the condition word on screen too.
 
-## Power and energy
+## Power and energy (energy is a future page)
 - Live power uses the ring gauge with the range 0 to the contract limit in watts. Switch the indicator colour at 80% (`DIALED_WARN`) and 100% (`DIALED_DANGER`), and show the matching status label.
 - Energy per hour is an `lv_chart` of type `LV_CHART_TYPE_BAR` with 24 points on one series. Colour bars individually in `LV_EVENT_DRAW_TASK_ADDED`: past hours `DIALED_LINE`, the current hour `DIALED_ACCENT`, bars above the limit `DIALED_WARN`; hours not yet reached are `LV_CHART_POINT_NONE`.
 - Update power at 1 Hz, energy once a minute.
