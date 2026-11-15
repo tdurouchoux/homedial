@@ -38,9 +38,9 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) runs on the device (full check needs hours of uptime). M5 (Weather now, hourly forecast) compiles; not yet confirmed on the device.
+- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) runs on the device (full check needs hours of uptime). M5 (Weather now, hourly forecast) works on the device (user). M6 (Electricity) compiles; not yet confirmed on the device.
 - Host unit tests for the LVGL-free `model_*` files: `tests/host/run.sh`.
-- Flash: the StampS3 is an ESP32-S3FN8 (8 MB flash, no PSRAM, per M5Stack's Dial docs); `esp32: flash_size: 8MB` gives two 3.75 MB OTA app slots. M5 uses 36.7 % of one. Check the size line of each compile.
+- Flash: the StampS3 is an ESP32-S3FN8 (8 MB flash, no PSRAM, per M5Stack's Dial docs); `esp32: flash_size: 8MB` gives two 3.75 MB OTA app slots. M6 uses 36.8 % of one. Check the size line of each compile.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.

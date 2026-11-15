@@ -23,6 +23,11 @@ sensor:
     entity_id: ${weather_entity}
     attribute: temperature
 
+# Electricity: live power in W. Entity id set in homedial.yaml (substitutions).
+  - platform: homeassistant
+    id: power_now
+    entity_id: ${power_entity}
+
 text_sensor:
   - platform: homeassistant
     id: weather_condition

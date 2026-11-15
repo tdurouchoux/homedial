@@ -26,6 +26,9 @@ dial_ui:
         - metric: humidity
           sensor: kitchen_humidity
           history: true
+  power:
+    sensor: power_now
+    contract_limit: 6000W   # 6 kVA contract (spec.md); WARN from 80 %, ALERT from 100 %
   weather:
     temperature: outdoor_temperature
     condition: weather_condition

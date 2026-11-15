@@ -103,6 +103,24 @@ int main() {
   CHECK(!swipe_action(PageKind::FORECAST, Swipe::LEFT, &a));
   CHECK(swipe_action(PageKind::WEATHER, Swipe::UP, &a) && a == NavAction::OPEN);
 
+  // With Weather and Electricity: room 0, room 1, Weather now, Electricity.
+  NavShape wp = w;
+  wp.has_power = true;
+  Page power{PageKind::POWER, 0, 0};
+  r = nav_apply(weather, NavAction::NEXT, wp, &before);
+  CHECK(r.page == power && r.slide == Slide::LEFT);
+  CHECK(!nav_apply(power, NavAction::NEXT, wp, &before).changed);  // last page, no wrap
+  CHECK(!nav_apply(power, NavAction::OPEN, wp, &before).changed);  // no children
+  CHECK(nav_apply(power, NavAction::PREV, wp, &before).page == weather);
+  r = nav_apply(power, NavAction::BACK, wp, &before);
+  CHECK(r.page.kind == PageKind::SETTINGS && before == power);
+  CHECK(carousel_size(wp) == 4 && carousel_index(power, wp) == 3);
+  // Electricity without Weather follows the rooms directly.
+  NavShape p_only = SHAPE;
+  p_only.has_power = true;
+  CHECK(nav_apply(room1, NavAction::NEXT, p_only, &before).page == power);
+  CHECK(carousel_index(power, p_only) == 2);
+
   if (failures == 0)
     std::printf("All nav tests passed\n");
   return failures == 0 ? 0 : 1;

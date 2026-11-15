@@ -23,6 +23,11 @@ static constexpr int32_t NUDGE_ROOM_PX = 8;        // Room readings (vertical)
 static constexpr int32_t NUDGE_SETTINGS_PX = 16;   // Settings content (vertical)
 static constexpr int32_t NUDGE_SIDE_PX = 12;       // sideways: room to room, metric to metric
 
+// Carousel pages (level 0): Settings opens from them (back, swipe down, touch hold).
+static bool is_level0_(const Page &p) {
+  return p.kind == PageKind::ROOM || p.kind == PageKind::WEATHER || p.kind == PageKind::POWER;
+}
+
 // Swipe up (Slide::UP) moves content up, so it arrives from below (+dy); down arrives from above.
 static int32_t arrival_dy(Slide slide, int32_t px) {
   if (slide == Slide::UP)
@@ -118,6 +123,15 @@ void DialUi::set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor
     int64_t t;
     this->rain_.ref_epoch = parse_iso8601(s.c_str(), &t) ? t : -1;
     this->weather_dirty_ = true;
+  });
+}
+
+void DialUi::set_power(sensor::Sensor *power, float limit_w) {
+  this->has_power_ = true;
+  this->power_limit_w_ = limit_w;
+  power->add_on_state_callback([this](float x) {
+    this->power_w_ = x;
+    this->power_dirty_ = true;
   });
 }
 
@@ -252,6 +266,11 @@ void DialUi::setup() {
     this->attach_events_(this->forecast_screen_.screen());
   }
 
+  if (this->has_power_) {
+    this->power_screen_.create(this->power_limit_w_);
+    this->attach_events_(this->power_screen_.screen());
+  }
+
   this->hold_timer_ = lv_timer_create(&DialUi::hold_timer_cb_, SETTINGS_HOLD_MS, this);
   lv_timer_pause(this->hold_timer_);
 
@@ -280,10 +299,15 @@ void DialUi::loop() {
       for (auto &r : room.readings)
         r.dirty = true;
     this->weather_dirty_ = true;
+    this->power_dirty_ = true;
     if (online)
       this->maybe_request_forecast_(true);  // on connect
   }
   this->refresh_();
+  if (this->has_power_ && this->power_dirty_) {  // power at 1 Hz (design)
+    this->power_dirty_ = false;
+    this->power_screen_.update(this->power_w_, this->online_last_, this->page_.kind == PageKind::POWER);
+  }
   this->maybe_request_forecast_(false);  // every 30 min
   // The rain arc moves with the clock (past slots fall off): redraw once a minute too.
   uint32_t minute = now / 60000;
@@ -344,6 +368,7 @@ void DialUi::refresh_() {
 NavShape DialUi::shape_() const {
   NavShape s{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
   s.has_weather = this->has_weather_;
+  s.has_power = this->has_power_;
   return s;
 }
 
@@ -368,7 +393,7 @@ void DialUi::show_(const Page &page, Slide slide) {
       ScreenRoom &scr = this->room_screens_[page.room];
       NavShape shape = this->shape_();
       // Dots glide when moving along the carousel; otherwise they are placed directly.
-      bool along = (prev.kind == PageKind::ROOM || prev.kind == PageKind::WEATHER) && !(prev == page);
+      bool along = is_level0_(prev) && !(prev == page);
       if (along)
         scr.animate_dots(carousel_size(shape), carousel_index(prev, shape), page.room);
       else
@@ -395,13 +420,27 @@ void DialUi::show_(const Page &page, Slide slide) {
     case PageKind::WEATHER: {
       NavShape shape = this->shape_();
       size_t idx = carousel_index(page, shape);
-      if (prev.kind == PageKind::ROOM)
+      if (is_level0_(prev) && !(prev == page))
         this->weather_screen_.animate_dots(carousel_size(shape), carousel_index(prev, shape), idx);
       else
         this->weather_screen_.set_dots(carousel_size(shape), idx);
       this->refresh_weather_();
       this->weather_screen_.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_ROOM_PX));
       this->load_(this->weather_screen_.screen(), slide);
+      break;
+    }
+    case PageKind::POWER: {
+      NavShape shape = this->shape_();
+      size_t idx = carousel_index(page, shape);
+      if (is_level0_(prev) && !(prev == page))
+        this->power_screen_.animate_dots(carousel_size(shape), carousel_index(prev, shape), idx);
+      else
+        this->power_screen_.set_dots(carousel_size(shape), idx);
+      // Ring sweep on arrival, like a Sensor page (only the ring redraws).
+      this->power_screen_.reset_ring();
+      this->power_screen_.update(this->power_w_, this->online_last_, true);
+      this->power_screen_.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->power_screen_.screen(), slide);
       break;
     }
     case PageKind::FORECAST: {
@@ -516,7 +555,7 @@ void DialUi::on_event_(lv_event_t *e) {
       break;
     }
     case LV_EVENT_PRESSED:
-      if (from_touch && (this->page_.kind == PageKind::ROOM || this->page_.kind == PageKind::WEATHER)) {
+      if (from_touch && is_level0_(this->page_)) {
         this->hold_indev_ = indev;
         lv_indev_get_point(indev, &this->hold_point_);
         lv_timer_reset(this->hold_timer_);
@@ -663,7 +702,7 @@ void DialUi::hold_timer_cb_(lv_timer_t *t) {
   auto *self = static_cast<DialUi *>(lv_timer_get_user_data(t));
   lv_indev_t *indev = self->hold_indev_;
   self->cancel_hold_();
-  if (indev == nullptr || (self->page_.kind != PageKind::ROOM && self->page_.kind != PageKind::WEATHER))
+  if (indev == nullptr || !is_level0_(self->page_))
     return;
   lv_point_t p;
   lv_indev_get_point(indev, &p);

@@ -198,7 +198,7 @@ Reserved shape, so the display phase does not block it: a `dial_ui` trigger `on_
 
 ## 9. Decisions and open items
 
-Decided (2026-11-15): no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5); weather provider Météo-France, rain arc = next 60 min from the Next rain sensor parsed on the device, no weather warnings this iteration, condition → icon table (§6).
+Decided (2026-11-15): Electricity = `power: {sensor, contract_limit: 6000W}` with the entity in the `power_entity` substitution; no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5); weather provider Météo-France, rain arc = next 60 min from the Next rain sensor parsed on the device, no weather warnings this iteration, condition → icon table (§6).
 
 Open:
 1. Rain line wording under the arc (§6).

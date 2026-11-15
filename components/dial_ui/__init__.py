@@ -37,6 +37,9 @@ CONF_CONDITION = "condition"
 CONF_RAIN_FORECAST = "rain_forecast"
 CONF_RAIN_FORECAST_TIME = "rain_forecast_time"
 CONF_ON_FORECAST_REQUEST = "on_forecast_request"
+CONF_POWER = "power"
+CONF_CONTRACT_LIMIT = "contract_limit"
+MAX_CAROUSEL_PAGES = 7  # PageDots fit 3 to 7 pages (design/components/PageDots)
 CONF_WARN_LOW = "warn_low"
 CONF_ALERT_LOW = "alert_low"
 CONF_WARN_HIGH = "warn_high"
@@ -140,6 +143,26 @@ WEATHER_SCHEMA = cv.All(
 )
 
 
+# Electricity (design ScreenPower): live power and the contract limit (ring 0 to limit).
+POWER_SCHEMA = cv.Schema(
+    {
+        cv.Required(CONF_SENSOR): cv.use_id(sensor.Sensor),
+        cv.Required(CONF_CONTRACT_LIMIT): cv.All(cv.float_with_unit("power", "(W|w)?"), cv.Range(min=100.0)),
+    }
+)
+
+
+def _validate_carousel(config):
+    pages = len(config[CONF_ROOMS]) + (CONF_WEATHER in config) + (CONF_POWER in config)
+    if pages > MAX_CAROUSEL_PAGES:
+        raise cv.Invalid(
+            f"the carousel has {pages} pages (rooms + weather + power); the page dots fit at most "
+            f"{MAX_CAROUSEL_PAGES}",
+            [CONF_ROOMS],
+        )
+    return config
+
+
 def _validate_history_needs_time(config):
     uses_history = any(m[CONF_HISTORY] for r in config[CONF_ROOMS] for m in r[CONF_METRICS])
     if uses_history and CONF_TIME_ID not in config:
@@ -161,9 +184,10 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_ROOMS, default=[]): cv.All(cv.ensure_list(ROOM_SCHEMA), _validate_rooms),
         cv.Optional(CONF_WEATHER): WEATHER_SCHEMA,
+        cv.Optional(CONF_POWER): POWER_SCHEMA,
     }
 ).extend(cv.COMPONENT_SCHEMA)
-CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time)
+CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time, _validate_carousel)
 
 
 def _float_expr(value):
@@ -212,3 +236,7 @@ async def to_code(config):
             cg.add(var.set_rain(rain, rain_time))
         if on_request := weather.get(CONF_ON_FORECAST_REQUEST):
             await automation.build_automation(var.get_forecast_request_trigger(), [], on_request)
+
+    if power := config.get(CONF_POWER):
+        sens = await cg.get_variable(power[CONF_SENSOR])
+        cg.add(var.set_power(sens, power[CONF_CONTRACT_LIMIT]))

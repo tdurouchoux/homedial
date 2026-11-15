@@ -17,6 +17,7 @@
 #include "model_room.h"
 #include "screen_forecast.h"
 #include "screen_history.h"
+#include "screen_power.h"
 #include "screen_room.h"
 #include "screen_sensor.h"
 #include "screen_settings.h"
@@ -34,6 +35,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   // Météo-France Next rain attributes `1_hour_forecast` / `forecast_time_ref` (both optional).
   void set_weather(sensor::Sensor *temperature, text_sensor::TextSensor *condition);
   void set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor *forecast_time);
+  // Electricity: live power in W and the contract limit in W (spec.md "Data decisions").
+  void set_power(sensor::Sensor *power, float limit_w);
   // YAML `on_forecast_request:` runs weather.get_forecasts and hands the compacted rows back:
   //   on_success: - lambda: id(ui).load_forecast(response["response"]);
   Trigger<> *get_forecast_request_trigger() { return &this->forecast_request_trigger_; }
@@ -91,6 +94,11 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ScreenHistory history_screen_;
   ScreenWeather weather_screen_;
   ScreenForecast forecast_screen_;
+  ScreenPower power_screen_;
+  bool has_power_{false};
+  float power_w_{NAN};
+  float power_limit_w_{0};
+  bool power_dirty_{true};
 
   // Weather state (written by callbacks, drawn by loop()).
   bool has_weather_{false};

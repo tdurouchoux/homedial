@@ -84,6 +84,12 @@ See `contract.md` for the ESPHome <-> UI contract.
   The cold-side temperature limits (18 / 16) were proposed and not contested; adjust them in YAML if needed.
 - **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
 
+## Electricity
+
+- Contract limit **6 kVA (6000 W)** (decided 2026-11-15), set as `power: contract_limit` in `packages/ui.yaml`. Ring 0 to the limit; WARN from 80 %, ALERT from 100 % (ring full).
+- Live power entity: `power_entity` substitution in `homedial.yaml` (placeholder until set). Shown in W up to 9999, then kW with one decimal.
+- The carousel holds at most 7 pages (rooms + Weather now + Electricity), the most the page dots fit: up to 5 rooms. `esphome config` rejects more.
+
 ## Room metrics
 
 Decided 2026-11-15: the rooms' sensors are BME688s, so the metrics are **Temperature, Humidity and Air quality** (the Bosch BSEC IAQ index, 0 to 500, labelled "Air quality" / unit "IAQ" on the Sensor page and "Air IAQ" on the Room page). This differs from `design/`, which shows CO2 and PM2.5; there is no CO2 or PM2.5 sensor. A room therefore has 1 to 3 readings, and the Room page uses the design's 2- and 3-reading layouts (1 reading is centred). The status is computed on the displayed, rounded value.
@@ -101,7 +107,7 @@ IAQ thresholds (OK up to 100, WARN 101 to 200, ALERT above 200) follow the band 
 
 ## Open questions
 
-- Home Assistant entities per room and metric (placeholders in `packages/ha_entities.yaml`), contract limit for the power ring.
+- Home Assistant entities per room and metric (placeholders in `packages/ha_entities.yaml`).
 - Where the weather city is configured.
 - Language (English with stock ASCII fonts, or French with Latin-1 custom fonts) and theme (dark only, or dark and day).
 - Whether an alert should also wake the screen.
