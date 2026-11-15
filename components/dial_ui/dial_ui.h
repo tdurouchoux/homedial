@@ -8,9 +8,11 @@
 #include "esphome/components/lvgl/lvgl_esphome.h"
 #include "esphome/components/sensor/sensor.h"
 
+#include "model_nav.h"
 #include "model_room.h"
 #include "screen_room.h"
 #include "screen_sensor.h"
+#include "screen_settings.h"
 
 namespace esphome::dial_ui {
 
@@ -30,26 +32,40 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   float get_setup_priority() const override { return setup_priority::PROCESSOR - 10.0f; }
 
  protected:
-  enum class Level : uint8_t { ROOM, SENSOR };
-
   void set_value_(size_t room, size_t index, float value);
   bool online_() const;
   void refresh_();
-  void show_room_(size_t room);
-  void show_sensor_(size_t room, size_t index);
-  void load_(lv_obj_t *screen);
+
+  // Navigation: every input becomes a NavAction (model_nav.h).
+  void nav_(NavAction action);
+  void open_metric_(size_t room, size_t index);  // tap on a Room reading
+  void show_(const Page &page, Slide slide);
+  void load_(lv_obj_t *screen, Slide slide);
+  ScreenSensor *visible_sensor_() { return &this->sensor_screens_[this->sensor_active_]; }
+
   void attach_events_(lv_obj_t *screen);
   static void event_cb_(lv_event_t *e);
   void on_event_(lv_event_t *e);
+  static void hold_timer_cb_(lv_timer_t *t);
+  void cancel_hold_();
 
   std::vector<Room> rooms_;
+  std::vector<size_t> readings_per_room_;
   std::vector<ScreenRoom> room_screens_;
-  ScreenSensor sensor_screen_;
+  // Two Sensor screens, so a slide between two metrics has a screen to leave and one to enter.
+  ScreenSensor sensor_screens_[2];
+  size_t sensor_active_{0};
+  ScreenSettings settings_screen_;
 
-  Level level_{Level::ROOM};
-  size_t room_{0};
+  Page page_{};
+  Page before_settings_{};
   bool online_last_{false};
   uint32_t last_refresh_ms_{0};
+
+  // Touch hold 600 ms at the top level opens Settings (spec.md).
+  lv_timer_t *hold_timer_{nullptr};
+  lv_indev_t *hold_indev_{nullptr};
+  lv_point_t hold_point_{};
 };
 
 }  // namespace esphome::dial_ui

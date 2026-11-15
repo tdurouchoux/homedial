@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1 confirmed on the device by the user. M2 written, validated, unit-tested and compiled in the container (flash 73.5 % of the app partition, RAM 31 %); awaiting on-device check.
+Status: M1 and M2 confirmed on the device by the user (FT5x06 "Failed to read status" warnings under investigation; I2C raised to 400 kHz). M3 written, unit-tested and compiled (flash 74.7 %, RAM 31 %); awaiting on-device check.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -43,6 +43,7 @@ tests/host/                   # g++ unit tests for model/
 *Done:* `model_metric.h`, `model_room.h`, `widget_*`, `screen_room.*`, `screen_sensor.*`; navigation subset ahead of M3 so the pages can be reached: turn = sibling room / metric, press on Room = first metric, tap on a reading = that metric, long press on Sensor = back. The encoder reaches pages through one focus object per screen in edit mode (`LV_EVENT_KEY`, `SHORT_CLICKED`, `LONG_PRESSED`; `CLICKED` also fires after a long press, so it is not used).
 
 **M3 – Navigation.** Page table `{kind, room, metric}`; carousel (rooms → weather → power, no wrap); deeper/back; Room tap on a reading; 200 ms slide; Settings entry (long press, swipe down, 600 ms touch hold) as a stub screen.
+*Done:* `model_nav.h` (pure `nav_apply(page, action)`, host-tested) is the single table for encoder, swipes and taps. Carousel is rooms only until Weather (M5) and Power (M6) exist. Two Sensor screens alternate so metric-to-metric slides work. Settings placeholder `screen_settings.h`. Swipe handling calls `lv_indev_wait_release` so a swipe's release is not also a tap. Touch hold uses its own 600 ms timer (cancelled on release, gesture or > 12 px movement), independent of LVGL's touch long-press time, which M4 sets to 250 ms for the chart scrub.
 
 **M4 – History.** Ring buffer (24 closed hourly buckets + open; running mean; once-a-minute in-memory sample; missing hours; wall clock from HA time). TrendChart (`lv_chart`, LINE, cursor) + ScreenHistory with encoder and touch scrub (250 ms hold).
 *Host tests:* rollover, gaps, minute sampling, clock-not-valid.

@@ -3,6 +3,8 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$here/build"
-g++ -std=c++17 -Wall -Wextra -Werror -I"$here/../../components/dial_ui" \
-  "$here/test_model.cpp" -o "$here/build/test_model"
-"$here/build/test_model"
+for t in "$here"/test_*.cpp; do
+  name="$(basename "$t" .cpp)"
+  g++ -std=c++17 -Wall -Wextra -Werror -I"$here/../../components/dial_ui" "$t" -o "$here/build/$name"
+  "$here/build/$name"
+done
