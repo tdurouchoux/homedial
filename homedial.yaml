@@ -8,8 +8,8 @@ esphome:
     - -DLV_USE_ARC=1
     - -DLV_USE_LABEL=1
     # Stock Montserrat sizes used by the Dialed design (English UI, ASCII + degree sign + LV_SYMBOL_*).
+    # Size 14 is already enabled by ESPHome as the LVGL default font.
     - -DLV_FONT_MONTSERRAT_12=1
-    - -DLV_FONT_MONTSERRAT_14=1
     - -DLV_FONT_MONTSERRAT_16=1
     - -DLV_FONT_MONTSERRAT_20=1
     - -DLV_FONT_MONTSERRAT_28=1
