@@ -37,7 +37,7 @@ dial_ui:
       - homeassistant.action:
           action: weather.get_forecasts
           data:
-            entity_id: weather.home   # PLACEHOLDER: same entity as in packages/ha_entities.yaml
+            entity_id: ${weather_entity}   # set in homedial.yaml (substitutions)
             type: hourly
           capture_response: true
           # Compact the answer to [[epoch, "condition", temperature], ...] (24 rows).

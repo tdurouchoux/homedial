@@ -111,7 +111,7 @@ Checked and possible (`recorder.get_statistics` through `homeassistant.action` w
 | --- | --- | --- |
 | Outdoor temperature | `weather.<x>` attribute `temperature` | homeassistant `sensor` with `attribute:` |
 | Condition | `weather.<x>` state (`sunny`, `rainy`, ...) | homeassistant `text_sensor` |
-| Rain in the next hour | Météo-France `sensor.<city>_next_rain`, attributes `1_hour_forecast` and `forecast_time_ref` | two homeassistant `text_sensor`s with `attribute:`, wired as `weather: rain_forecast / rain_forecast_time` |
+| Rain in the next hour (entity ids: `weather_entity` / `next_rain_entity` substitutions in `homedial.yaml`) | Météo-France `sensor.<city>_next_rain`, attributes `1_hour_forecast` and `forecast_time_ref` | two homeassistant `text_sensor`s with `attribute:`, wired as `weather: rain_forecast / rain_forecast_time` |
 | Weather warning | not this iteration | none |
 | Hourly forecast (24 h) | `weather.get_forecasts` action, `type: hourly` | request/response, see below |
 

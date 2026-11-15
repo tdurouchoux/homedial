@@ -17,22 +17,21 @@ sensor:
     id: kitchen_humidity
     entity_id: sensor.kitchen_humidity
 
-# Météo-France (spec.md "Weather"). PLACEHOLDER ids: replace `weather.home` and
-# `sensor.home_next_rain` with your entities (Settings > Entities in Home Assistant).
+# Météo-France (spec.md "Weather"). The entity ids are set once in homedial.yaml (substitutions).
   - platform: homeassistant
     id: outdoor_temperature
-    entity_id: weather.paris_11eme_arrondissement
+    entity_id: ${weather_entity}
     attribute: temperature
 
 text_sensor:
   - platform: homeassistant
     id: weather_condition
-    entity_id: weather.paris_11eme_arrondissement
+    entity_id: ${weather_entity}
   - platform: homeassistant
     id: rain_next_hour
-    entity_id: sensor.paris_11eme_arrondissement_next_rain
+    entity_id: ${next_rain_entity}
     attribute: 1_hour_forecast
   - platform: homeassistant
     id: rain_next_hour_time
-    entity_id: sensor.paris_11eme_arrondissement_next_rain
+    entity_id: ${next_rain_entity}
     attribute: forecast_time_ref
