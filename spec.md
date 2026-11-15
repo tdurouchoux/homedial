@@ -30,7 +30,7 @@ Electricity                                          (no children)
 
 Settings (above the carousel):
   opened from level 0 by long press / touch hold / swipe down
-  Settings list --press--> Adjust luminosity | Adjust buzzer volume | Screen off | Power off
+  Settings list --press--> Adjust luminosity | Adjust buzzer volume | Screen off | Power off | Exit
 ```
 
 ## Navigation rules
@@ -48,10 +48,11 @@ Settings (above the carousel):
 
 ## Settings list
 
-Rows: Luminosity, Sound, Screen off, Power off (exact wording up to 12 characters, to confirm).
-- **Luminosity** and **Sound** open an Adjust page.
+Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power off, Exit.
+- **Luminosity** and **Buzzer vol.** (buzzer volume) open an Adjust page.
 - **Screen off** turns the backlight off; any input wakes it.
 - **Power off** drives HOLD low. This cuts power on battery only; on USB the device stays powered.
+- **Exit** closes Settings and returns to the page you left, same as a long press or swipe down.
 
 ## Behaviour
 
