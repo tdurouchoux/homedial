@@ -1,0 +1,122 @@
+# Board: M5Stack Dial
+# Definition: definitions/boards/m5stack_dial/manifest.yaml
+
+esphome:
+  name: homedial
+  friendly_name: homedial
+
+esp32:
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret homedial__encryption_key
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: homedial Fallback Hotspot
+    password: !secret homedial__ap_password
+captive_portal:
+
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: 9
+  - platform: ledc
+    id: buzzer
+    pin: 3
+
+light:
+  - platform: monochromatic
+    name: Backlight
+    id: display_backlight
+    default_transition_length: 0s
+    output: backlight_output
+
+spi:
+  - id: spi_bus
+    clk_pin: 6
+    mosi_pin: 5
+
+i2c:
+  - id: internal_i2c
+    scl: 12
+    sda: 11
+
+binary_sensor:
+  - platform: gpio
+    name: Button
+    id: front_button
+    pin: 42
+    on_press:
+      then:
+        - light.toggle: display_backlight
+  - platform: gpio
+    name: Hold Button
+    id: binary_sensor_gpio_2
+    pin: 46
+
+sensor:
+  - platform: rotary_encoder
+    name: encoder
+    id: encoder
+    pin_a: 40
+    pin_b: 41
+  - platform: homeassistant
+    id: living_temp
+    entity_id: sensor.livingroom_temperature   # replace
+    on_value:
+      then:
+        - lvgl.arc.update:
+            id: temp_arc
+            value: !lambda "return x;"
+        - lvgl.label.update:
+            id: temp_label
+            text:
+              format: "%.1f°C"
+              args: ['x']
+          
+display:
+  - platform: ili9xxx
+    id: round_display
+    model: GC9A01A
+    cs_pin: GPIO7
+    dc_pin: GPIO4
+    reset_pin: GPIO8
+    invert_colors: true
+    update_interval: never
+    auto_clear_enabled: false
+
+lvgl:
+  buffer_size: 25%
+  bg_color: 0x000000
+  text_font: montserrat_28
+  pages:
+    - id: main_page
+      widgets:
+        - arc:
+            id: temp_arc
+            align: CENTER
+            width: 220
+            height: 220
+            min_value: 10
+            max_value: 30
+            value: 10
+            adjustable: false     # read-only, no touch knob
+            arc_width: 14
+            indicator:
+              arc_width: 14
+              arc_color: 0xFF8800
+        - label:
+            id: temp_label
+            align: CENTER
+            text: "--"
+    
