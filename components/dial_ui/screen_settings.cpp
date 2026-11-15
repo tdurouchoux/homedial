@@ -45,7 +45,8 @@ void ScreenSettings::create() {
     lv_obj_set_pos(s.box, (DIALED_DISPLAY - ROW_W) / 2, tops[k]);
     lv_obj_set_style_radius(s.box, DIALED_RADIUS_MD, LV_PART_MAIN);
     s.title = lv_label_create(s.box);
-    lv_obj_set_style_text_font(s.title, DIALED_FONT_TITLE, LV_PART_MAIN);
+    // `body` (16 px), not the design's `title`: at 20 px "Luminosity" and its value overlapped (user).
+    lv_obj_set_style_text_font(s.title, DIALED_FONT_BODY, LV_PART_MAIN);
     if (k == 1) {
       // Focused row: accent fill, on-accent title and value (design ListMenu).
       lv_obj_set_style_bg_color(s.box, DIALED_ACCENT, LV_PART_MAIN);
