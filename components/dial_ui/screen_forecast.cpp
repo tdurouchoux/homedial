@@ -107,21 +107,21 @@ void ScreenForecast::set_data(const ForecastHour *rows, size_t n, int64_t now) {
   this->focus(this->focus_ < n ? this->focus_ : 0);
 }
 
-void ScreenForecast::focus(size_t i) {
+void ScreenForecast::focus(size_t i, bool animate) {
   if (this->count_ == 0)
     return;
   if (i >= this->count_)
     i = this->count_ - 1;
   lv_obj_update_layout(this->strip_);
-  lv_obj_scroll_to_x(this->strip_, static_cast<int32_t>(i) * COL_W, LV_ANIM_OFF);
-  this->apply_focus_(i);
+  lv_obj_scroll_to_x(this->strip_, static_cast<int32_t>(i) * COL_W, animate ? LV_ANIM_ON : LV_ANIM_OFF);
+  this->apply_focus_(i);  // focus styling follows at once; the strip scrolls under it
 }
 
 void ScreenForecast::step(int delta) {
   int i = static_cast<int>(this->focus_) + delta;
   if (i < 0 || i >= static_cast<int>(this->count_))
     return;
-  this->focus(static_cast<size_t>(i));
+  this->focus(static_cast<size_t>(i), true);
 }
 
 void ScreenForecast::apply_focus_(size_t f) {
@@ -152,6 +152,7 @@ void ScreenForecast::strip_event_cb_(lv_event_t *e) {
   if (self->count_ == 0)
     return;
   // After a drag the strip snaps on a column centre: that column is the focus.
+  // An encoder step that interrupts a running scroll also ends here: the last step wins.
   int32_t x = lv_obj_get_scroll_x(self->strip_);
   int32_t i = (x + COL_W / 2) / COL_W;
   if (i < 0)
@@ -167,7 +168,7 @@ void ScreenForecast::column_event_cb_(lv_event_t *e) {
   lv_obj_t *box = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
   for (size_t i = 0; i < self->count_; i++)
     if (self->cols_[i].box == box)
-      self->focus(i);  // a tap centres the column
+      self->focus(i, true);  // a tap centres the column
 }
 
 }  // namespace esphome::dial_ui

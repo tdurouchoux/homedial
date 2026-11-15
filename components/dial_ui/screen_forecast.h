@@ -18,8 +18,9 @@ class ScreenForecast {
   void create();
   // rows from forecast_first(); `now` decides "Now" and Today / Tomorrow. Keeps the focus.
   void set_data(const ForecastHour *rows, size_t n, int64_t now);
-  // Focus hour `i` (centres its column without animation).
-  void focus(size_t i);
+  // Focus hour `i` and centre its column; `animate` scrolls the strip there (encoder, tap)
+  // so the movement reads like a swipe, otherwise it jumps (opening the page).
+  void focus(size_t i, bool animate = false);
   void step(int delta);
   size_t focused() const { return this->focus_; }
   lv_obj_t *screen() const { return this->screen_; }
