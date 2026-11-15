@@ -56,7 +56,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 
 ## Behaviour
 
-- **Dimming:** the panel dims to 30% after 30 s without input and wakes on any input.
+- **Dimming and sleep:** with no input, the panel dims to 30% after 30 s and the screen turns off (backlight off) after 60 s in total. Any input wakes it to full brightness. The first input after a screen-off only wakes the screen and is not acted on.
 - **Alerts:** soft and visual only. The reading turns `warn` / `danger` and its status label follows. Nothing takes over the screen, nothing needs to be dismissed, and an alert does not wake the screen. It clears when the reading recovers.
 - **Missing data:** a value shows `--` with the OFFLINE status (design rule).
 
