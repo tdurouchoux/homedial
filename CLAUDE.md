@@ -24,6 +24,7 @@ secrets.yaml           # NEVER commit; wifi_ssid, wifi_password, homedial__encry
 packages/              # optional: hardware.yaml, ui.yaml, ha_entities.yaml
 components/dial_ui/    # __init__.py, dial_ui.h, dial_ui.cpp (+ generated font sources)
 spec.md                # product spec: screens, navigation, settings, behaviour
+contract.md            # data contract between ESPHome YAML and dial_ui (draft)
 design/                # Dialed design system (tokens, LVGL notes, component specs)
 ```
 
