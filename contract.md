@@ -90,12 +90,12 @@ Decided by the user (2026-11-15): **device-only, RAM only, hourly over 24 h.** N
 
 ### 5.1 Model
 
-Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, mean, count}`, aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
+Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, weighted_sum, credited_seconds}` (mean = sum / seconds), aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
 
-- Each live value (not `NaN`) updates the open bucket's running mean.
-- On the hour rollover the open bucket closes and the ring shifts. An hour with no value (device off, HA disconnected, sensor `NaN` all hour) is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
+- **Event-driven only, no periodic sampling.** The bucket mean is time-weighted: when a new value arrives, the previous value is credited for the time it was held (split across the hour boundary if needed). Work happens only on a value change and once per hour at rollover; nothing runs on a timer in between.
+- On the hour rollover the open bucket is closed by crediting the last known value up to the boundary, then the ring shifts. A stable sensor that sent nothing all hour therefore still gets its (unchanged) value, at no extra cost.
+- Time while the value is unknown (`NaN`, HA disconnected, device off, clock not yet valid) is not credited. An hour with no credited time is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
 - Wall clock: `time: - platform: homeassistant` (`homeassistant/time/`). Until the time is valid nothing is recorded. **[decide later]** the PCF8563 RTC could provide time before HA connects (CLAUDE.md open question on RTC); not needed for this contract.
-- Because HA only sends on change, a stable sensor yields few callbacks. The component therefore also samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean.
 
 ### 5.2 Not used: backfill from HA
 
@@ -166,9 +166,8 @@ Reserved shape, so the display phase does not block it: a `dial_ui` trigger `on_
 
 ## 9. Decisions and open items
 
-Decided (2026-11-15): sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5).
+Decided (2026-11-15): no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5).
 
 Open:
 1. Rain-remaining and weather-warning sources (§6).
-2. Battery/Wi-Fi icons on the Sensor page: which entities (Wi-Fi `wifi_signal` is local; the Dial has no documented battery gauge).
-3. RTC as a time source before HA connects (§5.1).
+2. RTC as a time source before HA connects (§5.1).
