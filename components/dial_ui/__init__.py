@@ -10,6 +10,8 @@ from esphome.components.lvgl.defines import CONF_LVGL_ID
 from esphome.components.lvgl.lvcode import LvglComponent
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
+from esphome.core import CORE
+from esphome.helpers import copy_file_if_changed
 
 CODEOWNERS = []
 DEPENDENCIES = ["lvgl"]
@@ -29,9 +31,14 @@ CONFIG_SCHEMA = cv.Schema(
 
 
 async def to_code(config):
-    if not (DESIGN_LVGL_DIR / "ui_tokens.h").is_file():
+    # Copy the tokens into the build's src/ (on the include path, like lvgl's lv_conf.h).
+    # An -I build flag does not work: ESP-IDF builds only forward -D/-W flags
+    # (esphome/build_gen/espidf.py), and files added under src/esphome/ are deleted
+    # by the source tree sync (esphome/writer.py: copy_src_tree).
+    tokens = DESIGN_LVGL_DIR / "ui_tokens.h"
+    if not tokens.is_file():
         raise cv.Invalid(f"ui_tokens.h not found in {DESIGN_LVGL_DIR}")
-    cg.add_build_flag(f"-I{DESIGN_LVGL_DIR}")
+    copy_file_if_changed(tokens, CORE.relative_src_path("ui_tokens.h"))
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)

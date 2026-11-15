@@ -47,7 +47,8 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 ## Conventions and gotchas
 - **LVGL version:** ESPHome 2026.10.2 bundles **LVGL 9.5.0** (`LVGL_VERSION` in `esphome/components/lvgl/__init__.py`), so write C++ against the v9 API (e.g. `lv_screen_active()`, `lv_obj_remove_flag()`, `lv_image_*`), not v8 names (`lv_scr_act`, `lv_obj_clear_flag`, `lv_img_*`). Confirm with the installed ESPHome version and its bundled LVGL headers before writing C++, and use the LVGL docs version that matches.
 - Do not use the removed/deprecated `custom_component` mechanism. Use a proper external component (Python + C++).
-- Design tokens: `components/dial_ui/__init__.py` adds `-I<repo>/design/lvgl` as a build flag, so C++ does `#include "ui_tokens.h"` and `design/` stays the single source of truth.
+- Design tokens: `components/dial_ui/__init__.py` copies `design/lvgl/ui_tokens.h` into the build's `src/` at codegen, so C++ does `#include "ui_tokens.h"` and `design/` stays the single source of truth. Do not use an `-I` build flag: ESP-IDF builds forward only `-D`/`-W` flags (`esphome/build_gen/espidf.py`).
+- ESPHome compiles only the files directly in `components/dial_ui/`, not subfolders (`esphome/loader.py: resources`). Keep the component flat and group files by prefix (`model_*.h`, `widget_*.cpp`, `screen_*.cpp`).
 - ESPHome generates `lv_conf.h` and sets every `LV_USE_*` not used in YAML to 0, but honours `esphome: build_flags` (`generate_lv_conf_h` in `esphome/components/lvgl/__init__.py`). Enable C++-only widgets (`LV_USE_ARC`, `LV_USE_CHART`, ...) and the Montserrat sizes 12, 14, 16, 20, 28, 40, 48 there.
 - Call `lv_*` only from component `setup()`/`loop()` or YAML lambdas (same loop as the LVGL handler).
 - LVGL's own printf may lack float support: format with `snprintf` into a buffer.

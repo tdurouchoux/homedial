@@ -13,22 +13,22 @@ homedial.yaml                 # esphome/esp32/wifi/api/ota + packages + external
 packages/hardware.yaml        # i2c, spi, display, backlight, buzzer, HOLD, encoder, button, touch, lvgl indevs, time
 packages/ha_entities.yaml     # homeassistant sensors/text_sensors (placeholder entity ids)
 packages/ui.yaml              # dial_ui: block (rooms, thresholds, contract limit, triggers)
-components/dial_ui/
+components/dial_ui/           # flat: ESPHome compiles only files directly in this folder
   __init__.py                 # schema + to_code
   dial_ui.h/.cpp              # Component: setup/loop, owns model + screens + nav
-  model/                      # pure C++, no LVGL: readings, status, history ring, rain parser, condition map
-  widgets/                    # one file per design component (ArcGauge, StatusLabel, LocationLabel, PageDots, TrendChart, ListMenu, WeatherIcon...)
-  screens/                    # room, sensor, history, weather, forecast, power, settings, adjust
-  fonts/                      # generated icon fonts (.c) + generation script
+  model_*.h/.cpp              # pure C++, no LVGL: readings, status, history ring, rain parser, condition map
+  widget_*.h/.cpp             # one per design component (ArcGauge, StatusLabel, LocationLabel, PageDots, TrendChart, ListMenu, WeatherIcon...)
+  screen_*.h/.cpp             # room, sensor, history, weather, forecast, power, settings, adjust
+  font_*.c                    # generated icon fonts (+ tools/ script outside the component)
 tests/host/                   # g++ unit tests for model/
 ```
 
 ## Cross-cutting choices
-- **Tokens:** `__init__.py` adds `-I<repo>/design/lvgl` (path from `Path(__file__)`) with `cg.add_build_flag`, so `design/lvgl/ui_tokens.h` stays the single source. Fallback if the build dir breaks relative paths: `copy_file_if_changed` (`esphome/helpers.py`) into the build `src/`.
+- **Tokens:** `__init__.py` copies `design/lvgl/ui_tokens.h` into the build `src/` with `copy_file_if_changed` (`-I` flags are dropped by the ESP-IDF build generator).
 - **LVGL features:** `generate_lv_conf_h` (`components/lvgl/__init__.py`) zeroes unused `LV_USE_*` but honours `esphome: build_flags`. Add `-DLV_USE_CHART=1`, `-DLV_USE_ARC=1`, `-DLV_USE_LABEL=1` etc. for widgets used only from C++, and `-DLV_FONT_MONTSERRAT_{12,14,16,20,28,40,48}=1`.
 - **Fonts:** English → stock Montserrat sizes via the build flags above (they include `°` and `LV_SYMBOL_*`). This replaces the "custom text fonts" plan in CLAUDE.md for now; update CLAUDE.md. Custom fonts only for the weather icon font (48/32 px) and room icon font (16 px), generated with `lv_font_conv` (npx) and committed as `.c`.
 - **LVGL access:** `dial_ui` takes `lvgl_id: cv.use_id(LvglComponent)`; setup priority after `setup_priority::PROCESSOR`; screens created with `lv_obj_create(nullptr)` and loaded with `lv_screen_load_anim`. Encoder group: use the default group ESPHome creates (`lv_group_get_default()`).
-- **Model is LVGL-free** (`model/`) so it can be unit-tested on the host with g++.
+- **Model is LVGL-free** (`model_*` files) so it can be unit-tested on the host with g++.
 - **Input:** `lvgl: encoders:` (rotary_encoder + GPIO42 button, `long_press_time: 600ms`) and `touchscreens:` (ft5x06 @0x38). Component reads `LV_EVENT_KEY`/`CLICKED`/`LONG_PRESSED`/`GESTURE` only; all routed to `nav_next/prev/open/back` (design `lvgl.md`). Resolves the CLAUDE.md open question in favour of the LVGL indev.
 - **HOLD:** a `gpio` switch with `restore_mode: ALWAYS_ON` (set at hardware setup), so Power off uses `switch::Switch`.
 - **Display:** keep `ili9xxx` GC9A01A (still supported in 2026.10.2); switch to `mipi_spi` only if compile/runtime requires.
@@ -65,6 +65,6 @@ Rain-line wording; weather city on the Forecast title; icon SVG sources for the 
 
 ## Verification
 - Every step: `uvx esphome config homedial.yaml` with a throwaway `secrets.yaml` (not committed).
-- Try `uvx esphome compile homedial.yaml` in the container once (catches C++/linker and lv_conf issues early); if the toolchain download is blocked, say so and rely on the user's build.
-- `tests/host`: `g++ -std=c++17` unit tests for `model/`, run in the container.
+- `uvx esphome compile` in the container runs codegen (checks generated `lv_conf.h`, CMake flags, copied files) but stops before compiling: `dl.espressif.com` is blocked by this session's network policy. C++ compile errors therefore come from the user's build.
+- `tests/host`: `g++ -std=c++17` unit tests for the `model_*` files, run in the container.
 - User builds/flashes each milestone and reports logs; nothing is claimed working on the device without their confirmation.
