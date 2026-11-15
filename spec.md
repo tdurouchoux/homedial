@@ -45,7 +45,7 @@ Settings (above the carousel):
   - History: press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on the chart, then drag.
   - Hourly forecast: turn moves the focus one hour; drag scrolls and snaps; tap centres a column.
   - Adjust: turn changes the value by one step, press saves, long press cancels.
-- Slide animation 200 ms in the direction of the gesture.
+- **No page-change animation** (decided 2026-11-15, after testing on the device): pages switch instantly, including opening and leaving Settings. The 200 ms slide felt laggy. This differs from `design/README.md` ("Motion").
 
 ## Settings list
 

@@ -10,7 +10,6 @@ namespace esphome::dial_ui {
 
 static const char *const TAG = "dial_ui";
 static constexpr uint32_t REFRESH_MS = 1000;      // design: update readings at 1 Hz
-static constexpr uint32_t SLIDE_MS = 200;         // spec: slide animation 200 ms
 static constexpr uint32_t SETTINGS_HOLD_MS = 600;  // spec: 600 ms touch hold opens Settings
 static constexpr int32_t HOLD_SLOP_PX = 12;        // a hold that moves further is a drag, not a hold
 
@@ -164,27 +163,11 @@ void DialUi::show_(const Page &page, Slide slide) {
 }
 
 void DialUi::load_(lv_obj_t *screen, Slide slide) {
-  lv_screen_load_anim_t anim = LV_SCREEN_LOAD_ANIM_NONE;
-  switch (slide) {
-    case Slide::LEFT:
-      anim = LV_SCREEN_LOAD_ANIM_MOVE_LEFT;
-      break;
-    case Slide::RIGHT:
-      anim = LV_SCREEN_LOAD_ANIM_MOVE_RIGHT;
-      break;
-    case Slide::UP:
-      anim = LV_SCREEN_LOAD_ANIM_MOVE_TOP;
-      break;
-    case Slide::DOWN:
-      anim = LV_SCREEN_LOAD_ANIM_MOVE_BOTTOM;
-      break;
-    default:
-      break;
-  }
-  if (anim == LV_SCREEN_LOAD_ANIM_NONE)
-    lv_screen_load(screen);
-  else
-    lv_screen_load_anim(screen, anim, SLIDE_MS, 0, false);
+  // No slide animation (user, 2026-11-15): a 200 ms full-screen slide redraws the whole
+  // 240x240 panel every frame over SPI and felt laggy on the device. `slide` is kept so
+  // the direction is still known if a cheaper transition is tried later.
+  (void) slide;
+  lv_screen_load(screen);
 
   // The screen itself is the only object in the encoder group, in edit mode, so turning
   // sends LV_KEY_LEFT/RIGHT to it and the push sends SHORT_CLICKED / LONG_PRESSED
