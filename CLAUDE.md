@@ -10,7 +10,7 @@ The UI look, components and input vocabulary are defined by the design system in
 
 ## Architecture
 - ESPHome owns: hardware drivers, Wi-Fi, HA API, OTA, entities, and LVGL init (`lvgl:` block with display and input devices only; no pages, widgets or fonts in YAML). ESPHome is only a data and command channel for the UI.
-- `components/dial_ui/` (local external component) owns: the **entire** UI (screens, navigation, styles, icons) built with raw `lv_*` calls on ESPHome's LVGL instance. Text uses the stock Montserrat sizes enabled by `esphome: build_flags` in `homedial.yaml` (English UI); icon fonts (weather, room) are `lv_font_conv` C files inside the component. No fonts in the `lvgl:` YAML block.
+- `components/dial_ui/` (local external component) owns: the **entire** UI (screens, navigation, styles, icons) built with raw `lv_*` calls on ESPHome's LVGL instance. Text uses the stock Montserrat sizes enabled by `esphome: build_flags` in `homedial.yaml` (English UI); weather icons are A8 images generated from the design SVGs by `tools/gen_weather_icons.js` (re-run it after changing `design/components/WeatherIcon`); room icons are not drawn yet. No fonts in the `lvgl:` YAML block.
 - HA -> UI: `platform: homeassistant` sensors/text_sensors are referenced by id in the `dial_ui:` config (rooms -> metrics -> `sensor: <id>`); the component subscribes to them itself. `id(ui).set_reading(...)` from an `on_value` lambda is only an escape hatch. Details in `contract.md`.
 - UI -> HA: the component publishes to an ESPHome entity (template number/sensor/event); YAML triggers on it and calls `homeassistant.action`. Do not touch the API protocol internals.
 - UI -> device: local commands (e.g. screen brightness) call ESPHome entities such as the `display_backlight` light from the component or YAML.
@@ -38,9 +38,9 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) compiles; not yet confirmed on the device.
+- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) runs on the device (full check needs hours of uptime). M5 (Weather now, hourly forecast) compiles; not yet confirmed on the device.
 - Host unit tests for the LVGL-free `model_*` files: `tests/host/run.sh`.
-- Flash budget: the stock Montserrat 40 and 48 fonts are large; M4 uses 75.6 % of the 1.75 MB app partition (the build assumes 4 MB flash; `flash_size: 8MB` would roughly double the app slot once the chip size is confirmed). Check the size line of each compile.
+- Flash budget: the stock Montserrat 40 and 48 fonts are large; M5 uses 78.7 % of the 1.75 MB app partition (the build assumes 4 MB flash; `flash_size: 8MB` would roughly double the app slot once the chip size is confirmed). Check the size line of each compile.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.

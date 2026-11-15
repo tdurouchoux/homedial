@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1–M3 confirmed on the device by the user. M4 (History) written, unit-tested and compiled (flash 75.6 %, RAM 31 %); awaiting on-device check.
+Status: M1–M3 confirmed on the device; M4 partly (history needs hours of uptime). M5 (Weather now + hourly forecast) written, unit-tested and compiled (flash 78.7 %, RAM 32 %); awaiting on-device check with real Météo-France entities.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -52,6 +52,7 @@ tests/host/                   # g++ unit tests for model/
 **M5 – Weather now + forecast.** Weather sensors (temperature attribute, condition text_sensor, next-rain attributes `1_hour_forecast` / `forecast_time_ref`). Rain parser (Python-repr dict, `Temps sec` = dry) → segmented 60-min arc. Condition → icon table. Icon font. `on_forecast_request` trigger (automation in schema) + `load_forecast(JsonArrayConst)`; requested on connect, every 30 min, on page open if > 30 min old. ScreenWeather, ScreenForecast (snap strip, encoder focus).
 *Host tests:* rain parser (dry, rain, partial, malformed), forecast row filtering, icon map.
 *User check in HA:* run the `response_template` in Developer tools first.
+*Done:* `model_weather.h` (condition map, ISO time, rain slot parser, runs, rain line, forecast rows; host-tested), weather and room carousel in `model_nav.h`, `widget_weather.*` (A8 icon images, segmented RainArc), `screen_weather.*`, `screen_forecast.*`, `on_forecast_request` trigger + `load_forecast(JsonVariantConst)`. Icons: `tools/gen_weather_icons.js` renders the design SVGs with Chromium into `weather_icons.c` (A8 images tinted `ink`, not an icon font: the stroked SVGs would need outline tooling). The `response_template` was checked with plain Jinja2 against a response shaped like HA's `weather/services.py` (not in a real HA).
 
 **M6 – Power.** `power: {sensor: use_id}`; ScreenPower with 80/100 % colours and kW switch above 9999 W.
 

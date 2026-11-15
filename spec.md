@@ -94,12 +94,14 @@ IAQ thresholds (OK up to 100, WARN 101 to 200, ALERT above 200) follow the band 
 
 - Source: the Météo-France integration in Home Assistant (current conditions, hourly forecast, Next rain sensor).
 - **Rain arc** (differs from `design/`, which shows rain left over 0 to 6 h): the ring is a timeline of the next 60 minutes from now. Rainy slots of Météo-France's 1-hour rain forecast are drawn as accent segments; no ring when the whole hour is dry or the rain forecast is unavailable for the location.
+- **Rain line** (decided 2026-11-15): "Rain now" when the current slot is rainy, "Rain in N min" when rain starts later in the hour, nothing when the hour is dry.
+- Condition words (12 characters or fewer): Sunny, Clear (night), Part cloudy, Windy, Cloudy, Fog, Exceptional, Rain, Heavy rain, Snow, Sleet, Hail, Storm. Temperature in whole degrees with "°".
+- Missing weather data shows `--` and OFFLINE in place of the condition word. The hourly forecast is fetched from Home Assistant on connect, every 30 minutes and when the Forecast page opens with older data.
 - Condition icons: sunny, clear-night -> clear; partlycloudy, windy-variant -> part cloudy; cloudy, fog, windy, exceptional -> cloudy; rainy, pouring -> rain; snowy, snowy-rainy, hail -> snow; lightning, lightning-rainy -> storm.
 
 ## Open questions
 
 - Home Assistant entities per room and metric (placeholders in `packages/ha_entities.yaml`), contract limit for the power ring.
-- Wording of the rain line under the arc (e.g. "Rain now", "Rain in 15 min").
 - Where the weather city is configured.
 - Language (English with stock ASCII fonts, or French with Latin-1 custom fonts) and theme (dark only, or dark and day).
 - Whether an alert should also wake the screen.

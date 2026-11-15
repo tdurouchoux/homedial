@@ -6,8 +6,9 @@ See CLAUDE.md (architecture), spec.md (screens) and contract.md (data contract).
 import math
 from pathlib import Path
 
+from esphome import automation
 import esphome.codegen as cg
-from esphome.components import sensor, time
+from esphome.components import sensor, text_sensor, time
 from esphome.components.lvgl.defines import CONF_LVGL_ID
 from esphome.components.lvgl.lvcode import LvglComponent
 import esphome.config_validation as cv
@@ -17,6 +18,7 @@ from esphome.helpers import copy_file_if_changed
 
 CODEOWNERS = []
 DEPENDENCIES = ["lvgl"]
+AUTO_LOAD = ["json", "text_sensor"]  # load_forecast() takes the action's JSON response
 
 # design/lvgl holds ui_tokens.h, the single source of truth for colours and sizes.
 DESIGN_LVGL_DIR = Path(__file__).resolve().parents[2] / "design" / "lvgl"
@@ -29,6 +31,12 @@ CONF_METRICS = "metrics"
 CONF_THRESHOLDS = "thresholds"
 CONF_HISTORY = "history"
 CONF_TIME_ID = "time_id"
+CONF_WEATHER = "weather"
+CONF_TEMPERATURE = "temperature"
+CONF_CONDITION = "condition"
+CONF_RAIN_FORECAST = "rain_forecast"
+CONF_RAIN_FORECAST_TIME = "rain_forecast_time"
+CONF_ON_FORECAST_REQUEST = "on_forecast_request"
 CONF_WARN_LOW = "warn_low"
 CONF_ALERT_LOW = "alert_low"
 CONF_WARN_HIGH = "warn_high"
@@ -114,10 +122,30 @@ def _validate_rooms(rooms):
     return rooms
 
 
+# Weather now + hourly forecast (spec.md "Weather", contract.md §6).
+WEATHER_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            # Météo-France weather entity: attribute `temperature` and the state (condition).
+            cv.Required(CONF_TEMPERATURE): cv.use_id(sensor.Sensor),
+            cv.Required(CONF_CONDITION): cv.use_id(text_sensor.TextSensor),
+            # Next rain sensor attributes `1_hour_forecast` and `forecast_time_ref`.
+            cv.Optional(CONF_RAIN_FORECAST): cv.use_id(text_sensor.TextSensor),
+            cv.Optional(CONF_RAIN_FORECAST_TIME): cv.use_id(text_sensor.TextSensor),
+            # Runs weather.get_forecasts; on_success hands the rows to id(ui).load_forecast().
+            cv.Optional(CONF_ON_FORECAST_REQUEST): automation.validate_automation(single=True),
+        }
+    ),
+    cv.has_none_or_all_keys(CONF_RAIN_FORECAST, CONF_RAIN_FORECAST_TIME),
+)
+
+
 def _validate_history_needs_time(config):
     uses_history = any(m[CONF_HISTORY] for r in config[CONF_ROOMS] for m in r[CONF_METRICS])
     if uses_history and CONF_TIME_ID not in config:
         raise cv.Invalid("time_id is required when a metric has history: true", [CONF_TIME_ID])
+    if CONF_WEATHER in config and CONF_TIME_ID not in config:
+        raise cv.Invalid("time_id is required with weather: (rain timing, forecast hours)", [CONF_TIME_ID])
     return config
 
 
@@ -132,6 +160,7 @@ CONFIG_SCHEMA = cv.Schema(
             {cv.Optional(m): THRESHOLDS_SCHEMA for m in METRICS}
         ),
         cv.Optional(CONF_ROOMS, default=[]): cv.All(cv.ensure_list(ROOM_SCHEMA), _validate_rooms),
+        cv.Optional(CONF_WEATHER): WEATHER_SCHEMA,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time)
@@ -172,3 +201,14 @@ async def to_code(config):
             sens = await cg.get_variable(reading[CONF_SENSOR])
             thresholds = cg.StructInitializer(Thresholds, *[(k, _float_expr(t[k])) for k in THRESHOLD_KEYS])
             cg.add(var.add_reading(METRICS[metric], sens, thresholds, reading[CONF_HISTORY]))
+
+    if weather := config.get(CONF_WEATHER):
+        temp = await cg.get_variable(weather[CONF_TEMPERATURE])
+        cond = await cg.get_variable(weather[CONF_CONDITION])
+        cg.add(var.set_weather(temp, cond))
+        if CONF_RAIN_FORECAST in weather:
+            rain = await cg.get_variable(weather[CONF_RAIN_FORECAST])
+            rain_time = await cg.get_variable(weather[CONF_RAIN_FORECAST_TIME])
+            cg.add(var.set_rain(rain, rain_time))
+        if on_request := weather.get(CONF_ON_FORECAST_REQUEST):
+            await automation.build_automation(var.get_forecast_request_trigger(), [], on_request)

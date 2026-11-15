@@ -79,6 +79,30 @@ int main() {
   CHECK(!swipe_action(PageKind::HISTORY, Swipe::LEFT, &a));
   CHECK(!swipe_action(PageKind::HISTORY, Swipe::UP, &a));
 
+  // With Weather: carousel = room 0, room 1, Weather now.
+  NavShape w = SHAPE;
+  w.has_weather = true;
+  Page weather{PageKind::WEATHER, 0, 0};
+  r = nav_apply(room1, NavAction::NEXT, w, &before);
+  CHECK(r.page == weather && r.slide == Slide::LEFT);
+  CHECK(!nav_apply(weather, NavAction::NEXT, w, &before).changed);  // last page (Electricity: M6)
+  r = nav_apply(weather, NavAction::PREV, w, &before);
+  CHECK(r.page == room1);
+  r = nav_apply(weather, NavAction::OPEN, w, &before);
+  CHECK(r.page.kind == PageKind::FORECAST && r.slide == Slide::UP);
+  Page forecast = r.page;
+  CHECK(!nav_apply(forecast, NavAction::NEXT, w, &before).changed);
+  CHECK(!nav_apply(forecast, NavAction::OPEN, w, &before).changed);
+  r = nav_apply(forecast, NavAction::BACK, w, &before);
+  CHECK(r.page == weather && r.slide == Slide::DOWN);
+  r = nav_apply(weather, NavAction::BACK, w, &before);  // top level: Settings, returns to Weather
+  CHECK(r.page.kind == PageKind::SETTINGS && before == weather);
+  CHECK(carousel_size(w) == 3 && carousel_index(weather, w) == 2 && carousel_index(room1, w) == 1);
+  CHECK(!nav_apply(room1, NavAction::NEXT, SHAPE, &before).changed);  // no weather: room 1 is last
+  CHECK(swipe_action(PageKind::FORECAST, Swipe::DOWN, &a) && a == NavAction::BACK);
+  CHECK(!swipe_action(PageKind::FORECAST, Swipe::LEFT, &a));
+  CHECK(swipe_action(PageKind::WEATHER, Swipe::UP, &a) && a == NavAction::OPEN);
+
   if (failures == 0)
     std::printf("All nav tests passed\n");
   return failures == 0 ? 0 : 1;

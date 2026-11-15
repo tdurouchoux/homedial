@@ -15,6 +15,8 @@ static constexpr int32_t HOLD_SLOP_PX = 12;        // a hold that moves further 
 static constexpr uint32_t SAMPLE_MS = 60000;       // history: one sample a minute (contract.md §5)
 static constexpr uint32_t SCRUB_HOLD_MS = 250;     // design: hold 250 ms on the chart starts a scrub
 static constexpr uint32_t SCRUB_KEEP_MS = 2000;    // design: the readout stays 2 s after release
+static constexpr uint32_t FORECAST_EVERY_MS = 30 * 60 * 1000;  // contract.md §6: every 30 min
+static constexpr uint32_t FORECAST_TIMEOUT_MS = 30000;         // a request with no answer is retried
 // Arrival nudges (spec.md): content arrives moving the way the finger went.
 static constexpr int32_t NUDGE_VALUE_PX = 12;      // Sensor hero value (vertical)
 static constexpr int32_t NUDGE_ROOM_PX = 8;        // Room readings (vertical)
@@ -85,6 +87,111 @@ void DialUi::set_value_(size_t room, size_t index, float value) {
   r.dirty = true;
 }
 
+void DialUi::set_weather(sensor::Sensor *temperature, text_sensor::TextSensor *condition) {
+  this->has_weather_ = true;
+  if (temperature != nullptr)
+    temperature->add_on_state_callback([this](float x) {
+      this->outdoor_temp_ = x;
+      this->weather_dirty_ = true;
+    });
+  if (condition != nullptr)
+    condition->add_on_state_callback([this](const std::string &s) {
+      this->condition_ = s;
+      this->weather_dirty_ = true;
+    });
+}
+
+void DialUi::set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor *forecast_time) {
+  // The two attributes arrive separately; parse the slots when they come, the time when it comes.
+  forecast->add_on_state_callback([this](const std::string &s) {
+    this->rain_attr_ = s;
+    int64_t ref = this->rain_.ref_epoch;
+    if (!parse_rain_slots(s.c_str(), &this->rain_)) {
+      if (s != "unknown" && s != "unavailable" && !s.empty())
+        ESP_LOGW(TAG, "Could not read the rain forecast: '%s'", s.c_str());
+      this->rain_.count = 0;
+    }
+    this->rain_.ref_epoch = ref;
+    this->weather_dirty_ = true;
+  });
+  forecast_time->add_on_state_callback([this](const std::string &s) {
+    int64_t t;
+    this->rain_.ref_epoch = parse_iso8601(s.c_str(), &t) ? t : -1;
+    this->weather_dirty_ = true;
+  });
+}
+
+void DialUi::load_forecast(JsonVariantConst rows) {
+  this->forecast_pending_ = false;
+  if (!rows.is<JsonArrayConst>()) {
+    ESP_LOGW(TAG, "Forecast response is not a list; check the response_template (contract.md §6)");
+    return;
+  }
+  this->forecast_.clear();
+  for (JsonVariantConst row : rows.as<JsonArrayConst>()) {
+    if (!row.is<JsonArrayConst>() || row.size() < 3)
+      continue;
+    ForecastHour h{};
+    h.epoch = row[0].as<int64_t>();
+    const char *cond = row[1].as<const char *>();
+    snprintf(h.condition, sizeof(h.condition), "%s", cond != nullptr ? cond : "");
+    h.temp = row[2].isNull() ? NAN : row[2].as<float>();
+    this->forecast_.push_back(h);
+    if (this->forecast_.size() >= 30)
+      break;
+  }
+  this->forecast_loaded_ = true;
+  this->forecast_loaded_ms_ = millis();
+  this->forecast_dirty_ = true;
+  ESP_LOGD(TAG, "Forecast: %u hours", static_cast<unsigned>(this->forecast_.size()));
+}
+
+void DialUi::forecast_request_failed(const std::string &error) {
+  this->forecast_pending_ = false;
+  ESP_LOGW(TAG, "Forecast request failed: %s", error.c_str());
+}
+
+int64_t DialUi::now_epoch_() const {
+  if (this->time_ == nullptr)
+    return -1;
+  int64_t t = static_cast<int64_t>(this->time_->timestamp_now());
+  return t >= HourlyHistory::MIN_VALID_EPOCH ? t : -1;
+}
+
+// Forecast requests (contract.md §6): on connect, every 30 min, and when the Forecast page
+// opens with data older than 30 min. One request at a time.
+void DialUi::maybe_request_forecast_(bool force) {
+  if (!this->has_weather_ || !this->online_last_)
+    return;
+  uint32_t now = millis();
+  if (this->forecast_pending_ && now - this->forecast_requested_ms_ < FORECAST_TIMEOUT_MS)
+    return;
+  bool stale = !this->forecast_loaded_ || now - this->forecast_loaded_ms_ >= FORECAST_EVERY_MS;
+  if (!force && !stale)
+    return;
+  this->forecast_pending_ = true;
+  this->forecast_requested_ms_ = now;
+  ESP_LOGD(TAG, "Requesting the hourly forecast");
+  this->forecast_request_trigger_.trigger();
+}
+
+void DialUi::refresh_weather_() {
+  if (!this->has_weather_)
+    return;
+  int64_t now = this->now_epoch_();
+  RainRun runs[RainArc::MAX_RUNS];
+  size_t n = now >= 0 ? rain_runs(this->rain_, now, runs, RainArc::MAX_RUNS) : 0;
+  this->weather_screen_.update(this->outdoor_temp_, this->condition_, runs, n, this->online_last_);
+  if (this->forecast_dirty_) {  // new rows: redraw the strip (it keeps its focus)
+    this->forecast_dirty_ = false;
+    size_t first = now >= 0 ? forecast_first(this->forecast_.data(), this->forecast_.size(), now) : 0;
+    size_t n_rows = this->forecast_.size() - first;
+    if (n_rows > ScreenForecast::MAX_HOURS)
+      n_rows = ScreenForecast::MAX_HOURS;
+    this->forecast_screen_.set_data(this->forecast_.data() + first, n_rows, now);
+  }
+}
+
 bool DialUi::online_() const {
 #ifdef USE_API
   // Home Assistant is connected (a client subscribed to HA states), contract.md §4.
@@ -104,7 +211,7 @@ void DialUi::setup() {
         mask |= static_cast<uint8_t>(1u << i);
     this->history_mask_.push_back(mask);
     this->room_screens_[r].create(this->rooms_[r]);
-    this->room_screens_[r].set_dots(this->rooms_.size(), r);
+    this->room_screens_[r].set_dots(carousel_size(this->shape_()), r);
     this->attach_events_(this->room_screens_[r].screen());
   }
   for (auto &scr : this->sensor_screens_) {
@@ -122,6 +229,13 @@ void DialUi::setup() {
   lv_timer_pause(this->scrub_hold_timer_);
   this->scrub_revert_timer_ = lv_timer_create(&DialUi::scrub_revert_cb_, SCRUB_KEEP_MS, this);
   lv_timer_pause(this->scrub_revert_timer_);
+
+  if (this->has_weather_) {
+    this->weather_screen_.create();
+    this->attach_events_(this->weather_screen_.screen());
+    this->forecast_screen_.create();
+    this->attach_events_(this->forecast_screen_.screen());
+  }
 
   this->hold_timer_ = lv_timer_create(&DialUi::hold_timer_cb_, SETTINGS_HOLD_MS, this);
   lv_timer_pause(this->hold_timer_);
@@ -150,8 +264,21 @@ void DialUi::loop() {
     for (auto &room : this->rooms_)
       for (auto &r : room.readings)
         r.dirty = true;
+    this->weather_dirty_ = true;
+    if (online)
+      this->maybe_request_forecast_(true);  // on connect
   }
   this->refresh_();
+  this->maybe_request_forecast_(false);  // every 30 min
+  // The rain arc moves with the clock (past slots fall off): redraw once a minute too.
+  uint32_t minute = now / 60000;
+  if (this->weather_dirty_ || minute != this->last_rain_minute_) {
+    this->weather_dirty_ = false;
+    this->last_rain_minute_ = minute;
+    this->refresh_weather_();
+  } else if (this->forecast_dirty_) {
+    this->refresh_weather_();
+  }
 }
 
 // Once a minute: each history reading's current value (from memory, not a request to HA) goes
@@ -199,9 +326,14 @@ void DialUi::refresh_() {
 
 // ---- Navigation (spec.md "Navigation rules") ----
 
+NavShape DialUi::shape_() const {
+  NavShape s{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
+  s.has_weather = this->has_weather_;
+  return s;
+}
+
 void DialUi::nav_(NavAction action) {
-  NavShape shape{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
-  NavResult r = nav_apply(this->page_, action, shape, &this->before_settings_);
+  NavResult r = nav_apply(this->page_, action, this->shape_(), &this->before_settings_);
   if (r.changed)
     this->show_(r.page, r.slide);
 }
@@ -219,11 +351,13 @@ void DialUi::show_(const Page &page, Slide slide) {
   switch (page.kind) {
     case PageKind::ROOM: {
       ScreenRoom &scr = this->room_screens_[page.room];
+      NavShape shape = this->shape_();
       // Dots glide when moving along the carousel; otherwise they are placed directly.
-      if (prev.kind == PageKind::ROOM && prev.room != page.room)
-        scr.animate_dots(this->rooms_.size(), prev.room, page.room);
+      bool along = (prev.kind == PageKind::ROOM || prev.kind == PageKind::WEATHER) && !(prev == page);
+      if (along)
+        scr.animate_dots(carousel_size(shape), carousel_index(prev, shape), page.room);
       else
-        scr.set_dots(this->rooms_.size(), page.room);
+        scr.set_dots(carousel_size(shape), page.room);
       scr.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_ROOM_PX));
       this->load_(scr.screen(), slide);
       break;
@@ -243,6 +377,31 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->history_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
       this->load_(this->history_screen_.screen(), slide);
       break;
+    case PageKind::WEATHER: {
+      NavShape shape = this->shape_();
+      size_t idx = carousel_index(page, shape);
+      if (prev.kind == PageKind::ROOM)
+        this->weather_screen_.animate_dots(carousel_size(shape), carousel_index(prev, shape), idx);
+      else
+        this->weather_screen_.set_dots(carousel_size(shape), idx);
+      this->refresh_weather_();
+      this->weather_screen_.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_ROOM_PX));
+      this->load_(this->weather_screen_.screen(), slide);
+      break;
+    }
+    case PageKind::FORECAST: {
+      this->maybe_request_forecast_(false);  // refresh if older than 30 min
+      int64_t now = this->now_epoch_();
+      size_t first = now >= 0 ? forecast_first(this->forecast_.data(), this->forecast_.size(), now) : 0;
+      size_t n_rows = this->forecast_.size() - first;
+      if (n_rows > ScreenForecast::MAX_HOURS)
+        n_rows = ScreenForecast::MAX_HOURS;
+      this->forecast_screen_.set_data(this->forecast_.data() + first, n_rows, now);
+      this->forecast_screen_.focus(0);  // opens at "Now" (design ScreenForecast)
+      this->forecast_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->forecast_screen_.screen(), slide);
+      break;
+    }
     case PageKind::SETTINGS:
       this->settings_screen_.nudge(arrival_dy(slide, NUDGE_SETTINGS_PX));
       this->load_(this->settings_screen_.screen(), slide);
@@ -288,6 +447,12 @@ void DialUi::on_event_(lv_event_t *e) {
 
   if (this->page_.kind == PageKind::HISTORY && this->history_event_(e, code, from_encoder))
     return;
+  if (this->page_.kind == PageKind::FORECAST && code == LV_EVENT_KEY) {
+    // Turn moves the focus one hour; it never changes page here.
+    uint32_t key = lv_event_get_key(e);
+    this->forecast_screen_.step(key == LV_KEY_RIGHT ? 1 : (key == LV_KEY_LEFT ? -1 : 0));
+    return;
+  }
 
   switch (code) {
     case LV_EVENT_KEY: {  // encoder turn
@@ -336,7 +501,7 @@ void DialUi::on_event_(lv_event_t *e) {
       break;
     }
     case LV_EVENT_PRESSED:
-      if (from_touch && this->page_.kind == PageKind::ROOM) {
+      if (from_touch && (this->page_.kind == PageKind::ROOM || this->page_.kind == PageKind::WEATHER)) {
         this->hold_indev_ = indev;
         lv_indev_get_point(indev, &this->hold_point_);
         lv_timer_reset(this->hold_timer_);
@@ -483,7 +648,7 @@ void DialUi::hold_timer_cb_(lv_timer_t *t) {
   auto *self = static_cast<DialUi *>(lv_timer_get_user_data(t));
   lv_indev_t *indev = self->hold_indev_;
   self->cancel_hold_();
-  if (indev == nullptr || self->page_.kind != PageKind::ROOM)
+  if (indev == nullptr || (self->page_.kind != PageKind::ROOM && self->page_.kind != PageKind::WEATHER))
     return;
   lv_point_t p;
   lv_indev_get_point(indev, &p);

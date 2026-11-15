@@ -17,3 +17,26 @@ dial_ui:
         - metric: air_quality
           sensor: living_room_iaq
           history: true
+  weather:
+    temperature: outdoor_temperature
+    condition: weather_condition
+    rain_forecast: rain_next_hour
+    rain_forecast_time: rain_next_hour_time
+    # Hourly forecast (contract.md §6). Needs "Allow the device to perform Home Assistant
+    # actions" in the device's ESPHome integration options in HA.
+    on_forecast_request:
+      - homeassistant.action:
+          action: weather.get_forecasts
+          data:
+            entity_id: weather.home   # PLACEHOLDER: same entity as in packages/ha_entities.yaml
+            type: hourly
+          capture_response: true
+          # Compact the answer to [[epoch, "condition", temperature], ...] (24 rows).
+          response_template: >-
+            [{%- for f in ((response.values() | list | first).forecast[:24]) if f.temperature is not none -%}
+            [{{ as_timestamp(f.datetime) | int }},"{{ f.condition or '' }}",{{ f.temperature | round(1) }}]{{ ',' if not loop.last }}
+            {%- endfor -%}]
+          on_success:
+            - lambda: id(ui).load_forecast(response["response"]);
+          on_error:
+            - lambda: id(ui).forecast_request_failed(error);

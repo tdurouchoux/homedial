@@ -9,3 +9,23 @@ sensor:
   - platform: homeassistant
     id: living_room_iaq
     entity_id: sensor.livingroom_air_quality_index   # BME688 BSEC IAQ index (0 to 500)
+
+# Météo-France (spec.md "Weather"). PLACEHOLDER ids: replace `weather.home` and
+# `sensor.home_next_rain` with your entities (Settings > Entities in Home Assistant).
+  - platform: homeassistant
+    id: outdoor_temperature
+    entity_id: weather.home
+    attribute: temperature
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_condition
+    entity_id: weather.home
+  - platform: homeassistant
+    id: rain_next_hour
+    entity_id: sensor.home_next_rain
+    attribute: 1_hour_forecast
+  - platform: homeassistant
+    id: rain_next_hour_time
+    entity_id: sensor.home_next_rain
+    attribute: forecast_time_ref

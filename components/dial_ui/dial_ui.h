@@ -3,18 +3,24 @@
 
 #include <vector>
 
+#include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
 #include "esphome/components/lvgl/lvgl_esphome.h"
+#include "esphome/components/json/json_util.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/time/real_time_clock.h"
 
 #include "model_nav.h"
+#include "model_weather.h"
 #include "model_room.h"
+#include "screen_forecast.h"
 #include "screen_history.h"
 #include "screen_room.h"
 #include "screen_sensor.h"
 #include "screen_settings.h"
+#include "screen_weather.h"
 
 namespace esphome::dial_ui {
 
@@ -24,6 +30,15 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void add_room(const char *id, const char *name);
   void add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds, bool history);  // to the last room
   void set_time(time::RealTimeClock *time) { this->time_ = time; }
+  // Weather now (spec.md "Weather"): temperature attribute, condition state, and the
+  // Météo-France Next rain attributes `1_hour_forecast` / `forecast_time_ref` (both optional).
+  void set_weather(sensor::Sensor *temperature, text_sensor::TextSensor *condition);
+  void set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor *forecast_time);
+  // YAML `on_forecast_request:` runs weather.get_forecasts and hands the compacted rows back:
+  //   on_success: - lambda: id(ui).load_forecast(response["response"]);
+  Trigger<> *get_forecast_request_trigger() { return &this->forecast_request_trigger_; }
+  void load_forecast(JsonVariantConst rows);
+  void forecast_request_failed(const std::string &error);
 
   // ---- Escape hatch for YAML lambdas: id(ui).set_reading("living", "temperature", x) ----
   void set_reading(const char *room_id, const char *metric, float value);
@@ -39,6 +54,9 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   bool online_() const;
   void refresh_();
   void sample_history_();
+  int64_t now_epoch_() const;
+  void refresh_weather_();
+  void maybe_request_forecast_(bool force);
 
   // History page: scrub with the encoder (press, turn) or touch (hold 250 ms on the chart, drag).
   bool history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
@@ -52,6 +70,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   // Navigation: every input becomes a NavAction (model_nav.h).
   void nav_(NavAction action);
   void open_metric_(size_t room, size_t index);  // tap on a Room reading
+  NavShape shape_() const;
   void show_(const Page &page, Slide slide);
   void load_(lv_obj_t *screen, Slide slide);
   ScreenSensor *visible_sensor_() { return &this->sensor_screens_[this->sensor_active_]; }
@@ -70,6 +89,24 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   size_t sensor_active_{0};
   ScreenSettings settings_screen_;
   ScreenHistory history_screen_;
+  ScreenWeather weather_screen_;
+  ScreenForecast forecast_screen_;
+
+  // Weather state (written by callbacks, drawn by loop()).
+  bool has_weather_{false};
+  float outdoor_temp_{NAN};
+  std::string condition_;
+  RainForecast rain_;
+  std::string rain_attr_;
+  bool weather_dirty_{true};
+  uint32_t last_rain_minute_{0};
+  std::vector<ForecastHour> forecast_;
+  bool forecast_dirty_{false};
+  uint32_t forecast_loaded_ms_{0};
+  bool forecast_loaded_{false};
+  bool forecast_pending_{false};
+  uint32_t forecast_requested_ms_{0};
+  Trigger<> forecast_request_trigger_;
   std::vector<uint8_t> history_mask_;  // per room, bit i = reading i has history
   time::RealTimeClock *time_{nullptr};
   uint32_t last_sample_ms_{0};

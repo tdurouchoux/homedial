@@ -9,6 +9,14 @@ class StatusLabel {
  public:
   void create(lv_obj_t *parent, int32_t top);
   void set(Status status);
+  void set_visible(bool visible) {
+    if (this->row_ == nullptr)
+      return;
+    if (visible)
+      lv_obj_remove_flag(this->row_, LV_OBJ_FLAG_HIDDEN);
+    else
+      lv_obj_add_flag(this->row_, LV_OBJ_FLAG_HIDDEN);
+  }
 
  protected:
   lv_obj_t *row_{nullptr};

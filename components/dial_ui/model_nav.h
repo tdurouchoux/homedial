@@ -8,7 +8,7 @@
 
 namespace esphome::dial_ui {
 
-enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, SETTINGS };
+enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, WEATHER, FORECAST, SETTINGS };
 
 struct Page {
   PageKind kind{PageKind::ROOM};
@@ -35,7 +35,19 @@ struct NavShape {
   const size_t *readings_per_room{nullptr};
   // Bit i set: reading i of the room keeps history (YAML `history: true`), so it has a History page.
   const uint8_t *history_mask{nullptr};
+  bool has_weather{false};  // Weather now joins the carousel after the rooms (YAML `weather:`)
 };
+
+// Carousel (level 0): rooms, then Weather now (then Electricity, M6).
+inline size_t carousel_size(const NavShape &s) { return s.room_count + (s.has_weather ? 1 : 0); }
+inline size_t carousel_index(const Page &p, const NavShape &s) {
+  return p.kind == PageKind::WEATHER ? s.room_count : p.room;
+}
+inline Page carousel_page(size_t i, const NavShape &s) {
+  if (i < s.room_count)
+    return Page{PageKind::ROOM, i, 0};
+  return Page{PageKind::WEATHER, 0, 0};
+}
 
 // `before_settings` is where Settings returns to; it is updated when Settings opens.
 inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, Page *before_settings) {
@@ -43,18 +55,31 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
   r.page = cur;
   switch (cur.kind) {
     case PageKind::ROOM:
-      if (a == NavAction::NEXT && cur.room + 1 < shape.room_count) {  // level 0 stops at both ends
-        r.page.room = cur.room + 1;
+    case PageKind::WEATHER: {
+      size_t i = carousel_index(cur, shape);
+      if (a == NavAction::NEXT && i + 1 < carousel_size(shape)) {  // level 0 stops at both ends
+        r.page = carousel_page(i + 1, shape);
         r.slide = Slide::LEFT;
-      } else if (a == NavAction::PREV && cur.room > 0) {
-        r.page.room = cur.room - 1;
+      } else if (a == NavAction::PREV && i > 0) {
+        r.page = carousel_page(i - 1, shape);
         r.slide = Slide::RIGHT;
+      } else if (a == NavAction::OPEN && cur.kind == PageKind::WEATHER) {
+        r.page = Page{PageKind::FORECAST, 0, 0};  // hourly forecast
+        r.slide = Slide::UP;
       } else if (a == NavAction::OPEN && shape.readings_per_room[cur.room] > 0) {
         r.page = Page{PageKind::SENSOR, cur.room, 0};  // press opens the first metric
         r.slide = Slide::UP;
       } else if (a == NavAction::BACK) {
         *before_settings = cur;  // back at the top level opens Settings
         r.page = Page{PageKind::SETTINGS, 0, 0};
+        r.slide = Slide::DOWN;
+      }
+      break;
+    }
+    case PageKind::FORECAST:
+      // Level 2: turn and drag act inside the strip; only back changes page.
+      if (a == NavAction::BACK) {
+        r.page = Page{PageKind::WEATHER, 0, 0};
         r.slide = Slide::DOWN;
       }
       break;
@@ -106,7 +131,7 @@ inline bool swipe_action(PageKind kind, Swipe s, NavAction *out) {
     *out = NavAction::BACK;
     return true;
   }
-  if (kind == PageKind::HISTORY) {  // only swipe down (back) changes page
+  if (kind == PageKind::HISTORY || kind == PageKind::FORECAST) {  // only swipe down (back) changes page
     if (s != Swipe::DOWN)
       return false;
     *out = NavAction::BACK;
