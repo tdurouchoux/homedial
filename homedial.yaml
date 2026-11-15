@@ -6,7 +6,7 @@ substitutions:
   weather_entity: weather.paris_11eme_arrondissement
   next_rain_entity: sensor.paris_11eme_arrondissement_next_rain
   # Live power in W (Electricity page). PLACEHOLDER: replace with your entity.
-  power_entity: sensor.power_consumption
+  power_entity: sensor.linky_apparent_power
 
 esphome:
   name: homedial
