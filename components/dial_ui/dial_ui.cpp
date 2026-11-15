@@ -828,7 +828,7 @@ void DialUi::adjust_by_(int delta_steps) {
     return;
   SettingsRow row = static_cast<SettingsRow>(this->page_.index);
   const AdjustSpec &spec = adjust_spec(row);
-  this->adjust_value_ = clamp_setting(spec, this->adjust_value_ + delta_steps * spec.step);
+  this->adjust_value_ = setting_step(spec, this->adjust_value_, delta_steps);
   this->adjust_screen_.set_value(this->adjust_value_);
   // Live preview, undone on cancel (design: never change a value live without a way to cancel).
   if (row == SettingsRow::LUMINOSITY)

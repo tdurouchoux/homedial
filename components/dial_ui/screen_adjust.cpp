@@ -61,18 +61,18 @@ void ScreenAdjust::bind(const AdjustSpec &spec, int value) {
   this->spec_ = spec;
   lv_label_set_text(this->name_, spec.name);
   lv_label_set_text(this->unit_, spec.unit);
-  lv_arc_set_range(this->arc_, 0, (spec.max - spec.min) / spec.step);
+  lv_arc_set_range(this->arc_, 0, static_cast<int32_t>(setting_positions(spec)) - 1);
   this->set_value(value);
 }
 
 void ScreenAdjust::set_value(int value) {
   this->value_ = clamp_setting(this->spec_, value);
-  lv_arc_set_value(this->arc_, (this->value_ - this->spec_.min) / this->spec_.step);
+  lv_arc_set_value(this->arc_, static_cast<int32_t>(setting_index(this->spec_, this->value_)));
   lv_label_set_text_fmt(this->value_label_, "%d", this->value_);
 }
 
 int ScreenAdjust::value_from_arc() const {
-  return this->spec_.min + lv_arc_get_value(this->arc_) * this->spec_.step;
+  return setting_at(this->spec_, static_cast<size_t>(lv_arc_get_value(this->arc_)));
 }
 
 }  // namespace esphome::dial_ui

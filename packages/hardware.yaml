@@ -12,11 +12,15 @@ switch:
     internal: true
 
 output:
+  # LEDC channels share a timer in pairs (timer = channel / 2, esphome ledc_output.cpp): the buzzer
+  # changes its frequency (Settings > Buzzer pitch), so it gets its own timer, apart from the backlight.
   - platform: ledc
     id: backlight_output
     pin: GPIO9
+    channel: 0   # timer 0
   - platform: ledc
     id: buzzer
+    channel: 2   # timer 1, not shared with the backlight
     pin:
       number: GPIO3
       ignore_strapping_warning: true  # board wiring (buzzer)

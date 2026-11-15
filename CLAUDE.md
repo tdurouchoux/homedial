@@ -33,7 +33,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Board: ESP32-S3FN8 (StampS3, 8 MB flash, no PSRAM), `esp32: variant: esp32s3`, `flash_mode: dio`, `flash_size: 8MB`, framework `esp-idf`.
 - I2C: SDA GPIO11, SCL GPIO12. RTC PCF8563 @0x51, touch FT5x06 @0x38 (interrupt pin unsupported, leave unset), NFC RC522 @0x28.
 - SPI: MOSI GPIO5, CLK GPIO6. Display GC9A01A: CS GPIO7, DC GPIO4, RESET GPIO8, `invert_colors: true`. Backlight LEDC GPIO9 (exposed as light `display_backlight`).
-- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery; a `gpio` switch `power_hold` with `restore_mode: ALWAYS_ON`). GPIO3 and GPIO46 are strapping pins: the warning is silenced with `ignore_strapping_warning`.
+- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3 (LEDC `channel: 2`, its own timer: channels share timers in pairs and the buzzer changes frequency; the backlight is `channel: 0`). HOLD GPIO46 (output, drive high to keep power on battery; a `gpio` switch `power_hold` with `restore_mode: ALWAYS_ON`). GPIO3 and GPIO46 are strapping pins: the warning is silenced with `ignore_strapping_warning`.
 - Ports: A = GPIO13/15, B = GPIO1/2.
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 

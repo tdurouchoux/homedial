@@ -24,15 +24,21 @@ struct AdjustSpec {
   int step;
   int def;
   const char *unit;  // "%" or "Hz"
+  // Optional fixed list of values (ascending). When set, min/max/step are ignored and one
+  // detent moves one entry: used for pitch, where equal Hz steps do not sound equal.
+  const int *values{nullptr};
+  size_t count{0};
 };
 
 inline const AdjustSpec &adjust_spec(SettingsRow r) {
   // Luminosity never reaches 0 from Settings ("Screen off" does that).
   static const AdjustSpec LUM{"Luminosity", 10, 100, 5, 100, "%"};
   static const AdjustSpec VOL{"Buzzer volume", 0, 100, 10, 50, "%"};
-  // Tick pitch. M5Stack's own Dial examples tick at 8 kHz (M5Dial encoder.ino: Speaker.tone(8000, 20)),
-  // so the range reaches 8 kHz; 1 kHz (the LEDC default) keeps the original sound.
-  static const AdjustSpec PITCH{"Buzzer pitch", 500, 8000, 500, 1000, "Hz"};
+  // Tick pitch, 100 Hz to 6 kHz (user: above 6 kHz is unbearable, more range wanted at the low end),
+  // spaced roughly evenly to the ear. 1 kHz (the LEDC default) keeps the original sound.
+  static const int PITCHES[] = {100,  150,  200,  250,  300,  400,  500,  600,  800,
+                                1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000};
+  static const AdjustSpec PITCH{"Buzzer pitch", 100, 6000, 0, 1000, "Hz", PITCHES, sizeof(PITCHES) / sizeof(int)};
   if (r == SettingsRow::BUZZER)
     return VOL;
   if (r == SettingsRow::BUZZER_PITCH)
@@ -44,7 +50,31 @@ inline bool is_adjustable(SettingsRow r) {
   return r == SettingsRow::LUMINOSITY || r == SettingsRow::BUZZER || r == SettingsRow::BUZZER_PITCH;
 }
 
+// Number of positions on the Adjust ring, and the value at / index of a position.
+inline size_t setting_positions(const AdjustSpec &s) {
+  return s.values != nullptr ? s.count : static_cast<size_t>((s.max - s.min) / s.step + 1);
+}
+inline int setting_at(const AdjustSpec &s, size_t i) {
+  size_t n = setting_positions(s);
+  if (i >= n)
+    i = n - 1;
+  return s.values != nullptr ? s.values[i] : s.min + static_cast<int>(i) * s.step;
+}
+inline size_t setting_index(const AdjustSpec &s, int v) {
+  if (s.values == nullptr)
+    return static_cast<size_t>((v - s.min) / s.step);
+  size_t best = 0;
+  for (size_t i = 1; i < s.count; i++) {
+    int d = s.values[i] - v, db = s.values[best] - v;
+    if ((d < 0 ? -d : d) < (db < 0 ? -db : db))
+      best = i;
+  }
+  return best;
+}
+
 inline int clamp_setting(const AdjustSpec &s, int v) {
+  if (s.values != nullptr)
+    return s.values[setting_index(s, v)];  // nearest listed value
   if (v < s.min)
     return s.min;
   if (v > s.max)
@@ -80,6 +110,17 @@ inline float buzzer_level(int volume_percent) {
     return 0.0f;
   float v = volume_percent > 100 ? 1.0f : static_cast<float>(volume_percent) / 100.0f;
   return 0.5f * v * v * v;
+}
+
+// Moves `v` by `steps` positions (one detent = one position), clamped to the ends.
+inline int setting_step(const AdjustSpec &s, int v, int steps) {
+  int i = static_cast<int>(setting_index(s, clamp_setting(s, v))) + steps;
+  int n = static_cast<int>(setting_positions(s));
+  if (i < 0)
+    i = 0;
+  if (i >= n)
+    i = n - 1;
+  return setting_at(s, static_cast<size_t>(i));
 }
 
 }  // namespace esphome::dial_ui
