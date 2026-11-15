@@ -11,16 +11,25 @@ class ScreenSettings {
   void create() {
     this->screen_ = create_screen();
     lv_obj_t *title = create_text(this->screen_, DIALED_FONT_TITLE, DIALED_INK, 0);
+    this->title_ = title;
     lv_label_set_text(title, "Settings");
     lv_obj_align(title, LV_ALIGN_CENTER, 0, -DIALED_SPACE_3);
     lv_obj_t *hint = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, 0);
+    this->hint_ = hint;
     lv_label_set_text(hint, "Hold to go back");
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, DIALED_SPACE_5);
   }
   lv_obj_t *screen() const { return this->screen_; }
+  // Settings opens from above: its content drops into place (rows will stagger in M7).
+  void nudge(int32_t dy) {
+    nudge_in(this->title_, dy);
+    nudge_in(this->hint_, dy, 30);
+  }
 
  protected:
   lv_obj_t *screen_{nullptr};
+  lv_obj_t *title_{nullptr};
+  lv_obj_t *hint_{nullptr};
 };
 
 }  // namespace esphome::dial_ui

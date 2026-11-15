@@ -44,4 +44,31 @@ inline lv_obj_t *create_text(lv_obj_t *parent, const lv_font_t *font, lv_color_t
   return l;
 }
 
+// Vertical "nudge": the object is drawn `dy` px off and eases back to its place. It only moves
+// the drawing (translate_y), not the layout, so LVGL redraws just the object's box. Used instead
+// of full-screen slides (spec.md): content moves the way the finger went.
+static constexpr uint32_t NUDGE_MS = 150;
+
+inline void nudge_translate_cb(void *obj, int32_t v) {
+  lv_obj_set_style_translate_y(static_cast<lv_obj_t *>(obj), v, LV_PART_MAIN);
+}
+
+inline void nudge_in(lv_obj_t *obj, int32_t dy, uint32_t delay_ms = 0) {
+  if (obj == nullptr)
+    return;
+  lv_anim_delete(obj, &nudge_translate_cb);
+  lv_obj_set_style_translate_y(obj, dy, LV_PART_MAIN);  // first frame already offset
+  if (dy == 0)
+    return;
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, obj);
+  lv_anim_set_exec_cb(&a, &nudge_translate_cb);
+  lv_anim_set_values(&a, dy, 0);
+  lv_anim_set_duration(&a, NUDGE_MS);
+  lv_anim_set_delay(&a, delay_ms);
+  lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+  lv_anim_start(&a);
+}
+
 }  // namespace esphome::dial_ui
