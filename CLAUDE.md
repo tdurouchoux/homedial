@@ -10,11 +10,11 @@ The UI look, components and input vocabulary are defined by the design system in
 
 ## Architecture
 - ESPHome owns: hardware drivers, Wi-Fi, HA API, OTA, entities, and LVGL init (`lvgl:` block with display and input devices only; no pages, widgets or fonts in YAML). ESPHome is only a data and command channel for the UI.
-- `components/dial_ui/` (local external component) owns: the **entire** UI (screens, navigation, styles, fonts, icons) built with raw `lv_*` calls on ESPHome's LVGL instance. Fonts are compiled into the component (e.g. `lv_font_conv` C files), never declared in ESPHome YAML.
+- `components/dial_ui/` (local external component) owns: the **entire** UI (screens, navigation, styles, icons) built with raw `lv_*` calls on ESPHome's LVGL instance. Text uses the stock Montserrat sizes enabled by `esphome: build_flags` in `homedial.yaml` (English UI); icon fonts (weather, room) are `lv_font_conv` C files inside the component. No fonts in the `lvgl:` YAML block.
 - HA -> UI: `platform: homeassistant` sensors/text_sensors are referenced by id in the `dial_ui:` config (rooms -> metrics -> `sensor: <id>`); the component subscribes to them itself. `id(ui).set_reading(...)` from an `on_value` lambda is only an escape hatch. Details in `contract.md`.
 - UI -> HA: the component publishes to an ESPHome entity (template number/sensor/event); YAML triggers on it and calls `homeassistant.action`. Do not touch the API protocol internals.
 - UI -> device: local commands (e.g. screen brightness) call ESPHome entities such as the `display_backlight` light from the component or YAML.
-- Input: the encoder, its push button and touch are registered as LVGL input devices by ESPHome. The component only reads LVGL events (see "Input" in `design/README.md`); there is no second physical button.
+- Input: the encoder (with its push button as enter key, `long_press_time: 600ms`) and the FT5x06 touch are registered as LVGL input devices in `packages/hardware.yaml`. The component only reads LVGL events (`CLICKED`, `LONG_PRESSED`, `KEY`, `GESTURE`; see "Input" in `design/README.md`); there is no second physical button.
 - Fallback if this hits limits: pure LVGL YAML (`lvgl:` pages/widgets), or fully custom PlatformIO firmware (user decision, not a default).
 
 ## Repo layout (target)
@@ -23,6 +23,7 @@ homedial.yaml          # main config: hardware + packages (name is `homedial`)
 secrets.yaml           # NEVER commit; wifi_ssid, wifi_password, homedial__encryption_key, homedial__ap_password
 packages/              # optional: hardware.yaml, ui.yaml, ha_entities.yaml
 components/dial_ui/    # __init__.py, dial_ui.h, dial_ui.cpp (+ generated font sources)
+plan.md                # implementation milestones
 spec.md                # product spec: screens, navigation, settings, behaviour
 contract.md            # data contract between ESPHome YAML and dial_ui (draft)
 design/                # Dialed design system (tokens, LVGL notes, component specs)
@@ -32,23 +33,22 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Board: ESP32-S3 (StampS3), `esp32: variant: esp32s3`, framework `esp-idf`, `platformio_options: board_build.flash_mode: dio`.
 - I2C: SDA GPIO11, SCL GPIO12. RTC PCF8563 @0x51, touch FT5x06 @0x38 (interrupt pin unsupported, leave unset), NFC RC522 @0x28.
 - SPI: MOSI GPIO5, CLK GPIO6. Display GC9A01A: CS GPIO7, DC GPIO4, RESET GPIO8, `invert_colors: true`. Backlight LEDC GPIO9 (exposed as light `display_backlight`).
-- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery).
+- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery; a `gpio` switch `power_hold` with `restore_mode: ALWAYS_ON`). GPIO3 and GPIO46 are strapping pins: the warning is silenced with `ignore_strapping_warning`.
 - Ports: A = GPIO13/15, B = GPIO1/2.
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- `homedial.yaml` is a **prototype**, not the target config. It lacks the features and structure the finished project needs (touchscreen, encoder as LVGL input, HOLD output, `dial_ui`, packages, entities); building these is part of the development scope. It contains a demo `lvgl:` page and a placeholder HA entity that will be replaced.
+- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty `dial_ui` screen) is in place and passes `esphome config`; not yet confirmed on the device.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Per the user, an earlier prototype compiled and ran with the HA sensor -> display path working. Nothing has been re-verified in this repo yet.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.
 
 ## Conventions and gotchas
-- **LVGL version:** current ESPHome docs say ESPHome supports **LVGL 9**, so write C++ against the v9 API (e.g. `lv_screen_active()`, `lv_obj_remove_flag()`, `lv_image_*`), not v8 names (`lv_scr_act`, `lv_obj_clear_flag`, `lv_img_*`). Confirm with the installed ESPHome version and its bundled LVGL headers before writing C++, and use the LVGL docs version that matches.
+- **LVGL version:** ESPHome 2026.10.2 bundles **LVGL 9.5.0** (`LVGL_VERSION` in `esphome/components/lvgl/__init__.py`), so write C++ against the v9 API (e.g. `lv_screen_active()`, `lv_obj_remove_flag()`, `lv_image_*`), not v8 names (`lv_scr_act`, `lv_obj_clear_flag`, `lv_img_*`). Confirm with the installed ESPHome version and its bundled LVGL headers before writing C++, and use the LVGL docs version that matches.
 - Do not use the removed/deprecated `custom_component` mechanism. Use a proper external component (Python + C++).
-- Include the design tokens from `design/lvgl/ui_tokens.h` in the component. An external component cannot reach `../design` by default, so decide on a copy/symlink/build step (open question) and keep `design/` the single source of truth.
-- Stock Montserrat sizes depend on the `lv_conf.h` that ESPHome generates, which we do not control. The design needs 12, 14, 16, 20, 28, 40, 48; the plan is custom fonts built into the component, so verify what ESPHome's LVGL build provides before relying on any stock font.
-- ESPHome may compile LVGL with only the widgets/features used in YAML. If a widget used from C++ fails to link, declare one in YAML (verify against the ESPHome LVGL docs for the installed version).
+- Design tokens: `components/dial_ui/__init__.py` adds `-I<repo>/design/lvgl` as a build flag, so C++ does `#include "ui_tokens.h"` and `design/` stays the single source of truth.
+- ESPHome generates `lv_conf.h` and sets every `LV_USE_*` not used in YAML to 0, but honours `esphome: build_flags` (`generate_lv_conf_h` in `esphome/components/lvgl/__init__.py`). Enable C++-only widgets (`LV_USE_ARC`, `LV_USE_CHART`, ...) and the Montserrat sizes 12, 14, 16, 20, 28, 40, 48 there.
 - Call `lv_*` only from component `setup()`/`loop()` or YAML lambdas (same loop as the LVGL handler).
 - LVGL's own printf may lack float support: format with `snprintf` into a buffer.
 - Keep UI content inside the circle (240x240 round, corners clipped).
@@ -65,11 +65,8 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 Product decisions (screens, navigation, settings, behaviour) live in `spec.md`, not here. The look and input vocabulary live in `design/`. Do not invent screens or entities; ask the user and record decisions in `spec.md`.
 
 ## Open questions
-- Exact ESPHome version and bundled LVGL version.
 - Final display platform (`ili9xxx` vs `mipi_spi`).
 - Whether NFC and the RTC are needed.
-- How `dial_ui` gets `design/lvgl/ui_tokens.h` and generated fonts into the build.
-- Whether the encoder push short/long press is handled by the LVGL encoder indev (`LV_EVENT_CLICKED` / `LV_EVENT_LONG_PRESSED`) or by a `binary_sensor` `on_click` calling the component.
 
 ## References
 

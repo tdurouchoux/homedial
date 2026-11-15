@@ -1,0 +1,3 @@
+# dial_ui external component (components/dial_ui). Data wiring per contract.md.
+dial_ui:
+  id: ui

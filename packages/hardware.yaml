@@ -1,0 +1,96 @@
+# M5Stack Dial v1.1 hardware. Pin map: CLAUDE.md "Hardware reference".
+
+switch:
+  # HOLD (GPIO46): driven high at setup to keep the Dial powered on battery.
+  # Turning it off cuts power on battery only (spec: Settings > Power off).
+  - platform: gpio
+    id: power_hold
+    pin:
+      number: GPIO46
+      ignore_strapping_warning: true  # board wiring (HOLD)
+    restore_mode: ALWAYS_ON
+    internal: true
+
+output:
+  - platform: ledc
+    id: backlight_output
+    pin: GPIO9
+  - platform: ledc
+    id: buzzer
+    pin:
+      number: GPIO3
+      ignore_strapping_warning: true  # board wiring (buzzer)
+
+light:
+  - platform: monochromatic
+    name: Backlight
+    id: display_backlight
+    output: backlight_output
+    default_transition_length: 0s
+    restore_mode: ALWAYS_ON
+
+spi:
+  - id: spi_bus
+    clk_pin: GPIO6
+    mosi_pin: GPIO5
+
+i2c:
+  - id: internal_i2c
+    sda: GPIO11
+    scl: GPIO12
+
+display:
+  - platform: ili9xxx
+    id: round_display
+    model: GC9A01A
+    spi_id: spi_bus
+    cs_pin: GPIO7
+    dc_pin: GPIO4
+    reset_pin: GPIO8
+    invert_colors: true
+    update_interval: never
+    auto_clear_enabled: false
+
+touchscreen:
+  # FT5x06 @0x38; the interrupt pin is not supported on the Dial, leave unset.
+  - platform: ft5x06
+    id: touch
+    i2c_id: internal_i2c
+    address: 0x38
+    display: round_display
+
+sensor:
+  - platform: rotary_encoder
+    id: encoder
+    pin_a:
+      number: GPIO40
+      mode: INPUT_PULLUP
+    pin_b:
+      number: GPIO41
+      mode: INPUT_PULLUP
+
+binary_sensor:
+  # Encoder push: the only physical button. Fed to LVGL as the encoder's enter key.
+  - platform: gpio
+    id: encoder_button
+    pin:
+      number: GPIO42
+      inverted: true
+      mode: INPUT_PULLUP
+
+time:
+  - platform: homeassistant
+    id: ha_time
+
+lvgl:
+  displays: [round_display]
+  buffer_size: 25%
+  encoders:
+    - sensor: encoder
+      enter_button: encoder_button
+      long_press_time: 600ms
+  touchscreens:
+    - touchscreen_id: touch
+  # No pages or widgets here: dial_ui builds the whole UI in C++.
+  # An empty widgets list stops ESPHome adding its hello_world page.
+  widgets: []
