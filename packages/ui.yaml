@@ -26,9 +26,6 @@ dial_ui:
         - metric: humidity
           sensor: kitchen_humidity
           history: true
-        - metric: air_quality
-          sensor: kitchen_iaq
-          history: true
   weather:
     temperature: outdoor_temperature
     condition: weather_condition
