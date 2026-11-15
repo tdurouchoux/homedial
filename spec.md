@@ -7,7 +7,7 @@ Product decisions for the Dial UI. Look and feel, components and the input vocab
 | Level | Page | Design component | Notes |
 | --- | --- | --- | --- |
 | 0 | Room summary (one per room) | ScreenRoom | 2 to 4 readings |
-| 0 | Weather now | ScreenWeather | rain-remaining arc |
+| 0 | Weather now | ScreenWeather | rain arc = next 60 min |
 | 0 | Electricity | ScreenPower | live power, no children |
 | 1 | Sensor (one per metric of a room) | ScreenSensor | Temperature, Humidity, and CO2 / PM2.5 only if the room has the sensor |
 | 2 | History (one per metric of a room) | ScreenHistory | scrub |
@@ -67,6 +67,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 ## Iteration scope
 
 - The Wi-Fi and battery icons shown at the top of the Sensor page in `design/` are not displayed in this iteration.
+- No weather warnings in this iteration (the design's WARN/ALERT on Weather now is not used).
 
 ## Data decisions
 
@@ -74,9 +75,16 @@ See `contract.md` for the ESPHome <-> UI contract.
 - **Thresholds and the power contract limit** are set in the `dial_ui:` YAML block (per-metric defaults, overridable per room).
 - **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
 
+## Weather
+
+- Source: the Météo-France integration in Home Assistant (current conditions, hourly forecast, Next rain sensor).
+- **Rain arc** (differs from `design/`, which shows rain left over 0 to 6 h): the ring is a timeline of the next 60 minutes from now. Rainy slots of Météo-France's 1-hour rain forecast are drawn as accent segments; no ring when the whole hour is dry or the rain forecast is unavailable for the location.
+- Condition icons: sunny, clear-night -> clear; partlycloudy, windy-variant -> part cloudy; cloudy, fog, windy, exceptional -> cloudy; rainy, pouring -> rain; snowy, snowy-rainy, hail -> snow; lightning, lightning-rainy -> storm.
+
 ## Open questions
 
-- Home Assistant entities per room and metric, thresholds per metric, contract limit for the power ring, weather source (hourly forecast and rain remaining).
+- Home Assistant entities per room and metric, thresholds per metric, contract limit for the power ring.
+- Wording of the rain line under the arc (e.g. "Rain now", "Rain in 15 min").
 - Where the weather city is configured.
 - Language (English with stock ASCII fonts, or French with Latin-1 custom fonts) and theme (dark only, or dark and day).
 - Whether an alert should also wake the screen.

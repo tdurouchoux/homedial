@@ -56,7 +56,9 @@ Decided by the user (2026-11-15). The public setter below stays as an escape hat
 // Live values. NaN = missing.
 void set_reading(Room room, Metric metric, float value);
 void set_power(float watts);
-void set_weather_now(float temp, const std::string &ha_condition, int rain_minutes, WeatherWarning warning);
+// Weather now: wired by id like the room sensors (§6); setters are the escape hatch.
+void set_weather_now(float temp, const std::string &ha_condition);
+void set_rain_next_hour(const std::string &forecast_attr, const std::string &time_ref_iso);
 // Forecast payload from a homeassistant.action response (§6).
 void load_forecast(JsonArrayConst rows);
 void forecast_request_failed(const std::string &error);
@@ -107,11 +109,37 @@ Checked and possible (`recorder.get_statistics` through `homeassistant.action` w
 | --- | --- | --- |
 | Outdoor temperature | `weather.<x>` attribute `temperature` | homeassistant `sensor` with `attribute:` |
 | Condition | `weather.<x>` state (`sunny`, `rainy`, ...) | homeassistant `text_sensor` |
-| Rain remaining (min) | **[decide]** no standard HA entity; needs an HA template sensor or a provider entity | homeassistant `sensor` |
-| Weather warning | **[decide]** provider-specific entity | homeassistant `text_sensor` |
+| Rain in the next hour | Météo-France `sensor.<city>_next_rain`, attributes `1_hour_forecast` and `forecast_time_ref` | two homeassistant `text_sensor`s with `attribute:` |
+| Weather warning | not this iteration | none |
 | Hourly forecast (24 h) | `weather.get_forecasts` action, `type: hourly` | request/response, see below |
 
-HA condition strings are mapped to the 6 design icons by one table in C++.
+Provider: **Météo-France** (decided). Its weather entity supports hourly forecasts (`meteo_france/weather.py`: `FORECAST_DAILY | FORECAST_HOURLY`).
+
+**Rain arc: rain presence over the next 60 min** (decided; replaces the design's "rain left, 0 to 6 h").
+- Source, checked in `meteo_france/sensor.py` (`MeteoFranceRainSensor`): the Next rain sensor's state is the start time of the first rainy slot (not used). Its attributes are `forecast_time_ref` (ISO time of the first slot) and `1_hour_forecast`, a dict `{"0 min": "<description>", "5 min": ..., ...}`, one entry per slot of the provider's 1-hour rain forecast. Updated every 5 min (`meteo_france/coordinator.py: SCAN_INTERVAL_RAIN`).
+- The entity exists only if Météo-France supports rain forecast at the configured location (`meteo_france/__init__.py`: the rain coordinator is dropped if its first refresh fails). If it is missing, the arc is not drawn.
+- Transport: HA sends the dict attribute as Python `str()` text (§3.3), e.g. `{'0 min': 'Temps sec', '5 min': 'Pluie faible', ...}`. **Parsed on the device** (decided): the component reads each `'<N> min': '<text>'` pair; a slot is dry if its text is exactly `Temps sec`, rainy otherwise. A parse failure is treated as missing (no arc), and logged. Risk accepted: a wording or format change in Météo-France or HA breaks it silently into "no arc".
+- Slot N covers `[forecast_time_ref + N min, next slot's start)`, the last one up to +60 min. Slots are placed relative to the device clock, so past slots fall off as time passes between 5-min updates.
+- Drawing: the 270° ring is a 0 → 60 min timeline starting at "now". Rainy slots are `accent` segments on the `track` background (one `lv_arc` per contiguous rainy run, no knob). The whole ring, track included, is hidden when every remaining slot is dry. The rain line text ("Rain for 2 h") is replaced by **[spec]** wording to agree, e.g. "Rain in 15 min" / "Rain now".
+
+**Value semantics.**
+- Weather state `unavailable`/`unknown` or a `NaN` temperature: the page shows `--` + OFFLINE like any reading.
+- The temperature is in HA's unit system (the attribute and forecast are converted by HA); the device only draws `°`, matching the design ("the unit is a setting").
+- The forecast's first row is the provider's first hourly slot, which can be the current or the next hour. The component drops rows whose hour has fully passed and labels the first remaining one "Now".
+- "Today"/"Tomorrow" on the Forecast page need the local date: `homeassistant` time applies HA's timezone when HA sends it pre-parsed (HA 2026.3+, `api/api_connection.cpp`); otherwise the device uses the `timezone:` set in YAML.
+
+**Condition → icon.** HA has 15 condition strings (`weather/const.py`): `clear-night`, `cloudy`, `exceptional`, `fog`, `hail`, `lightning`, `lightning-rainy`, `partlycloudy`, `pouring`, `rainy`, `snowy`, `snowy-rainy`, `sunny`, `windy`, `windy-variant`. They map to the 6 design icons by one table in C++ (decided):
+
+| Icon | HA conditions |
+| --- | --- |
+| clear | `sunny`, `clear-night` |
+| part cloudy | `partlycloudy`, `windy-variant` |
+| cloudy | `cloudy`, `fog`, `windy`, `exceptional` |
+| rain | `rainy`, `pouring` |
+| snow | `snowy`, `snowy-rainy`, `hail` |
+| storm | `lightning`, `lightning-rainy` |
+
+ The condition word shown under the icon is the component's own short label per HA string (≤ 12 chars), not the raw HA string.
 
 **Forecast request/response.** The component cannot call `homeassistant.action` itself without touching API internals, so it fires a trigger declared in its config, and YAML performs the action:
 
@@ -126,7 +154,7 @@ dial_ui:
         capture_response: true
         response_template: >-
           [{%- for f in (response.values() | list | first).forecast[:24] -%}
-          [{{ as_timestamp(f.datetime) | int }},"{{ f.condition }}",{{ f.temperature | round(1) }}]{{ ',' if not loop.last }}
+          [{{ as_timestamp(f.datetime) | int }},"{{ f.condition or '' }}",{{ f.temperature | round(1) if f.temperature is not none else 'null' }}]{{ ',' if not loop.last }}
           {%- endfor -%}]
         on_success:
           - lambda: id(ui).load_forecast(response["response"]);
@@ -139,7 +167,9 @@ Checked against the sources:
 - HA renders `response_template` with `response` = the action result and sends back `{"response": <rendered>}` as JSON (`esphome/manager.py: _handle_service_call_with_response`). Hence `response["response"]` in the lambda.
 - One API message is ≤ 32 KiB on ESP32 (`api/api_frame_helper.h: MAX_MESSAGE_SIZE`); 24 compact rows ≈ 1 KB.
 - Requires **"Allow the device to perform Home Assistant actions"** in the HA device options (`CONF_ALLOW_SERVICE_CALLS` in `manager.py`).
-- **Not verified yet:** the `weather.get_forecasts` response shape (`{entity_id: {forecast: [...]}}`) was not checked in HA source this session, and the template has not been run. Check in HA Developer tools > Actions when implementing.
+- `weather.get_forecasts` is an entity service with `supports_response: only` returning `{"forecast": [...]}` per entity, so the action result is `{"weather.x": {"forecast": [...]}}` (`weather/services.py`). Rows have `datetime` (ISO string, required), `condition` and `temperature`, both possibly `None`, already converted to HA's unit system (`weather/entity.py: Forecast`, `_convert_forecast`). The template guards both `None`s.
+- `type: hourly` fails with a validation error if the weather integration does not support hourly forecasts (`raise_unsupported_forecast`); the UI then shows the Forecast page as OFFLINE. **Check your provider supports hourly.**
+- The template has not been run yet: try it in HA Developer tools > Template / Actions before relying on it.
 
 Requested on connect, every 30 min, and when the Forecast page opens with data older than 30 min. One request at a time.
 
@@ -166,8 +196,8 @@ Reserved shape, so the display phase does not block it: a `dial_ui` trigger `on_
 
 ## 9. Decisions and open items
 
-Decided (2026-11-15): no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5).
+Decided (2026-11-15): no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5); weather provider Météo-France, rain arc = next 60 min from the Next rain sensor parsed on the device, no weather warnings this iteration, condition → icon table (§6).
 
 Open:
-1. Rain-remaining and weather-warning sources (§6).
+1. Rain line wording under the arc (§6).
 2. RTC as a time source before HA connects (§5.1).
