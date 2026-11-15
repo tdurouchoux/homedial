@@ -17,7 +17,7 @@ class ScreenRoom {
   // Arrival nudge: the room name and readings ease in from (dx, dy) px, 30 ms apart
   // (readings in reading order; sideways, the leading side moves first).
   void nudge(int32_t dx, int32_t dy) {
-    nudge_in(this->name_, dx, 0);
+    nudge_in(this->name_.obj(), dx, 0);
     for (size_t i = 0; i < this->slot_count_; i++) {
       size_t k = dx < 0 ? this->slot_count_ - 1 - i : i;  // arriving from the left: rightmost last
       nudge_in(this->slots_[i].box, dx, dy, static_cast<uint32_t>(k + (dx != 0 ? 1 : 0)) * 30);
@@ -34,7 +34,7 @@ class ScreenRoom {
     lv_obj_t *value{nullptr};
   };
   lv_obj_t *screen_{nullptr};
-  lv_obj_t *name_{nullptr};
+  LocationLabel name_;
   Slot slots_[METRIC_COUNT];
   size_t slot_count_{0};
   PageDots dots_;

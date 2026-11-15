@@ -35,9 +35,8 @@ static void layout(size_t count, SlotPos *pos, const lv_font_t **font) {
 
 void ScreenRoom::create(const Room &room) {
   this->screen_ = create_screen();
-  lv_obj_t *name = create_location_label(this->screen_, DIALED_FONT_LABEL, NAME_TOP);
-  lv_label_set_text(name, room.name.c_str());
-  this->name_ = name;
+  this->name_.create(this->screen_, DIALED_FONT_LABEL, NAME_TOP);
+  this->name_.set(room.name, room.icon);
 
   this->slot_count_ = room.readings.size() > METRIC_COUNT ? METRIC_COUNT : room.readings.size();
   SlotPos pos[METRIC_COUNT];

@@ -11,6 +11,7 @@ dial_ui:
   rooms:
     - id: living
       name: Living room
+      icon: living_room   # optional: living_room, bedroom, kitchen, bathroom, office, garage, garden, other
       metrics:
         - metric: temperature
           sensor: living_room_temperature
@@ -23,6 +24,7 @@ dial_ui:
           history: true
     - id: kitchen   # PLACEHOLDER room: check the sensors in packages/ha_entities.yaml
       name: Kitchen
+      icon: kitchen
       metrics:
         - metric: temperature
           sensor: kitchen_temperature

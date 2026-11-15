@@ -35,7 +35,7 @@ namespace esphome::dial_ui {
 class DialUi : public Component, public Parented<lvgl::LvglComponent> {
  public:
   // ---- Codegen (packages/ui.yaml -> __init__.py) ----
-  void add_room(const char *id, const char *name);
+  void add_room(const char *id, const char *name, uint8_t icon = 0);
   void add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds, bool history);  // to the last room
   void set_time(time::RealTimeClock *time) { this->time_ = time; }
   // Weather now (spec.md "Weather"): temperature attribute, condition state, and the

@@ -31,6 +31,9 @@ CONF_METRICS = "metrics"
 CONF_THRESHOLDS = "thresholds"
 CONF_HISTORY = "history"
 CONF_TIME_ID = "time_id"
+CONF_ICON = "icon"
+# RoomIcon set (design/components/RoomIcon), ids 1..8 in this order; 0 = no icon.
+ROOM_ICONS = ["living_room", "bedroom", "kitchen", "bathroom", "office", "garage", "garden", "other"]
 CONF_WEATHER = "weather"
 CONF_TEMPERATURE = "temperature"
 CONF_CONDITION = "condition"
@@ -112,6 +115,8 @@ ROOM_SCHEMA = cv.All(
         {
             cv.Required(CONF_ID): cv.string_strict,
             cv.Required(CONF_NAME): cv.All(cv.string_strict, cv.Length(min=1)),
+            # Optional 16 px icon in front of the room name (keep the name to 10 characters with one).
+            cv.Optional(CONF_ICON): cv.one_of(*ROOM_ICONS, lower=True),
             cv.Required(CONF_METRICS): cv.All(cv.ensure_list(READING_SCHEMA), cv.Length(min=1, max=3)),
         }
     ),
@@ -234,7 +239,8 @@ async def to_code(config):
     for room in config[CONF_ROOMS]:
         if len(room[CONF_NAME]) > ROOM_NAME_MAX:
             cg.add(cg.RawStatement(f"// room name '{room[CONF_NAME]}' longer than {ROOM_NAME_MAX}: shown with ellipsis"))
-        cg.add(var.add_room(room[CONF_ID], room[CONF_NAME]))
+        icon = ROOM_ICONS.index(room[CONF_ICON]) + 1 if CONF_ICON in room else 0
+        cg.add(var.add_room(room[CONF_ID], room[CONF_NAME], icon))
         for reading in room[CONF_METRICS]:
             metric = reading[CONF_METRIC]
             t = {**DEFAULT_THRESHOLDS[metric], **global_overrides.get(metric, {}), **reading[CONF_THRESHOLDS]}

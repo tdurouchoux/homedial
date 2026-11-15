@@ -15,7 +15,7 @@ static constexpr int32_t AXIS_X = 64;  // axis-end labels, from the centre
 
 void ScreenHistory::create() {
   this->screen_ = create_screen();
-  this->room_ = create_location_label(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
+  this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_M, DIALED_INK, VALUE_TOP);
   this->chart_.create(this->screen_, CHART_TOP);
@@ -31,7 +31,7 @@ void ScreenHistory::bind(const Room &room, size_t room_index, size_t index, bool
   this->index_ = index;
   this->scrub_ = -1;
   this->chart_.show_cursor(-1);
-  lv_label_set_text(this->room_, room.name.c_str());
+  this->room_.set(room.name, room.icon);
   this->update(room, online);
 }
 

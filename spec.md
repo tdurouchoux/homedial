@@ -93,6 +93,10 @@ See `contract.md` for the ESPHome <-> UI contract.
   The cold-side temperature limits (18 / 16) were proposed and not contested; adjust them in YAML if needed.
 - **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
 
+## Room icons
+
+Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon).
+
 ## Electricity
 
 - Contract limit **6 kVA (6000 W)** (decided 2026-11-15), set as `power: contract_limit` in `packages/ui.yaml`. Ring 0 to the limit; WARN from 80 %, ALERT from 100 % (ring full).

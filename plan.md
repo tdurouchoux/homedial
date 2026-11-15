@@ -52,7 +52,7 @@ tests/host/                   # g++ unit tests for model/
 **M5 – Weather now + forecast.** Weather sensors (temperature attribute, condition text_sensor, next-rain attributes `1_hour_forecast` / `forecast_time_ref`). Rain parser (Python-repr dict, `Temps sec` = dry) → segmented 60-min arc. Condition → icon table. Icon font. `on_forecast_request` trigger (automation in schema) + `load_forecast(JsonArrayConst)`; requested on connect, every 30 min, on page open if > 30 min old. ScreenWeather, ScreenForecast (snap strip, encoder focus).
 *Host tests:* rain parser (dry, rain, partial, malformed), forecast row filtering, icon map.
 *User check in HA:* run the `response_template` in Developer tools first.
-*Done:* `model_weather.h` (condition map, ISO time, rain slot parser, runs, rain line, forecast rows; host-tested), weather and room carousel in `model_nav.h`, `widget_weather.*` (A8 icon images, segmented RainArc), `screen_weather.*`, `screen_forecast.*`, `on_forecast_request` trigger + `load_forecast(JsonVariantConst)`. Icons: `tools/gen_weather_icons.js` renders the design SVGs with Chromium into `weather_icons.c` (A8 images tinted `ink`, not an icon font: the stroked SVGs would need outline tooling). The `response_template` was checked with plain Jinja2 against a response shaped like HA's `weather/services.py` (not in a real HA).
+*Done:* `model_weather.h` (condition map, ISO time, rain slot parser, runs, rain line, forecast rows; host-tested), weather and room carousel in `model_nav.h`, `widget_weather.*` (A8 icon images, segmented RainArc), `screen_weather.*`, `screen_forecast.*`, `on_forecast_request` trigger + `load_forecast(JsonVariantConst)`. Icons: `tools/gen_icons.js` (was gen_weather_icons.js) renders the design SVGs with Chromium into `weather_icons.c` (A8 images tinted `ink`, not an icon font: the stroked SVGs would need outline tooling). The `response_template` was checked with plain Jinja2 against a response shaped like HA's `weather/services.py` (not in a real HA).
 
 **M6 – Power.** `power: {sensor: use_id}`; ScreenPower with 80/100 % colours and kW switch above 9999 W.
 *Done:* `model_power.h` (host-tested), `screen_power.*`, Electricity as the last carousel page in `model_nav.h`, `power: {sensor, contract_limit}` schema, carousel limit of 7 pages validated, ring sweep on arrival, Settings reachable from every carousel page.
@@ -67,8 +67,8 @@ tests/host/                   # g++ unit tests for model/
 - `CLAUDE.md`: fonts (stock sizes via build flags), token include method, input via LVGL indev, resolved open questions.
 - `contract.md` / `spec.md`: anything changed while implementing; record the rain-line wording once chosen.
 
-## Open items that do not block M1–M4
-Rain-line wording; weather city on the Forecast title; icon SVG sources for the weather/room icon fonts (design only has previews); RTC as early time source; real entity ids.
+## Open items
+Weather city on the Forecast title; RTC as early time source; IAQ calibration state; aligning `design/` with spec.md decisions. Done since: room icons (`icon:` per room, generated from design/components/RoomIcon).
 
 ## Verification
 - Every step: `uvx esphome config homedial.yaml` with a throwaway `secrets.yaml` (not committed).

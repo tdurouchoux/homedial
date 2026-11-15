@@ -15,7 +15,7 @@ static constexpr size_t VALUE_XL_MAX_CHARS = 5;  // longer readings use value-l 
 void ScreenSensor::create() {
   this->screen_ = create_screen();
   this->gauge_.create(this->screen_);
-  this->room_ = create_location_label(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
+  this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
   this->unit_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, UNIT_TOP);
@@ -27,7 +27,7 @@ void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool 
   this->room_index_ = room_index;
   this->index_ = index;
   const MetricInfo &info = metric_info(room.readings[index].metric);
-  lv_label_set_text(this->room_, room.name.c_str());
+  this->room_.set(room.name, room.icon);
   lv_label_set_text(this->metric_, info.name);
   lv_label_set_text(this->unit_, info.unit);
   if (dots_from == SIZE_MAX)

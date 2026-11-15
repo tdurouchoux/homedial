@@ -52,10 +52,11 @@ static int32_t arrival_dx(Slide slide, int32_t px) {
   return 0;
 }
 
-void DialUi::add_room(const char *id, const char *name) {
+void DialUi::add_room(const char *id, const char *name, uint8_t icon) {
   Room r;
   r.id = id;
   r.name = name;
+  r.icon = icon;
   this->rooms_.push_back(std::move(r));
 }
 

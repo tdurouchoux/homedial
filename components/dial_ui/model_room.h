@@ -22,6 +22,7 @@ struct Reading {
 struct Room {
   std::string id;    // YAML id, used by set_reading("<room>", "<metric>", x)
   std::string name;  // display name, <= 12 characters (longer is cut with an ellipsis)
+  uint8_t icon{0};   // RoomIcon: 0 none, 1..8 (widget_location_label.h order)
   std::vector<Reading> readings;  // 1..3, in Metric order
 
   int index_of(Metric m) const {

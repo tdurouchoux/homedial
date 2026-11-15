@@ -31,7 +31,7 @@ class ScreenHistory {
   void live_readout_(const Room &room, bool online);
 
   lv_obj_t *screen_{nullptr};
-  lv_obj_t *room_{nullptr};
+  LocationLabel room_;
   lv_obj_t *metric_{nullptr};
   lv_obj_t *value_{nullptr};
   TrendChart chart_;
