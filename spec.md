@@ -29,7 +29,7 @@ Weather now   --press / swipe up-->                  Hourly forecast
 Electricity                                          (no children)
 
 Settings (above the carousel):
-  opened from level 0 by long press / touch hold / swipe down
+  opened from level 0 by long press / touch hold / swipe down; closed by swipe up / long press
   Settings list --press--> Adjust luminosity | Adjust buzzer volume | Screen off | Power off | Exit
 ```
 
@@ -38,7 +38,8 @@ Settings (above the carousel):
 - One table is shared by encoder and touch; both reach every page.
 - **Sibling move** (encoder turn, swipe left/right): next or previous page at the same level. Level 0 stops at both ends. On Sensor pages it moves between the room's metrics.
 - **Deeper** (encoder press, swipe up, or a tap on the target): open the page's child. On a Room page, a tap on a reading opens that metric's Sensor page directly; a press opens the first metric.
-- **Back** (encoder long press 600 ms, swipe down): up one level. From Settings it returns to the page you left. From an editor or a scrub it cancels.
+- **Back** (encoder long press 600 ms, swipe down): up one level. From an editor or a scrub it cancels.
+- **Leaving Settings** (decided 2026-11-15): Settings opens with a downward slide from above the carousel, so it closes with **swipe up** (the slide goes back up) or an encoder long press, and returns to the page you left. Swipe down does nothing on Settings. This differs from `design/README.md`, where swipe down is always back.
 - **Settings**: from level 0, the back gesture (long press, swipe down) or a 600 ms touch hold opens the Settings list.
 - **Level 2 interaction pages** (History, Hourly forecast, Adjust): turn and swipe act only inside the page and never change page.
   - History: press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on the chart, then drag.

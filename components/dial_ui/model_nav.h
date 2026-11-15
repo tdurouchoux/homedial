@@ -74,12 +74,41 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
     case PageKind::SETTINGS:
       if (a == NavAction::BACK) {
         r.page = *before_settings;  // returns to the page you left
-        r.slide = Slide::DOWN;
+        r.slide = Slide::UP;        // Settings sits above the carousel: it leaves upwards
       }
       break;
   }
   r.changed = !(r.page == cur);
   return r;
+}
+
+enum class Swipe : uint8_t { LEFT, RIGHT, UP, DOWN };
+
+// Swipe -> action. Horizontal = siblings, up = deeper, down = back, except on Settings,
+// which is opened by a downward slide and so is closed by swiping up (user, 2026-11-15).
+// Returns false when the swipe does nothing on this page.
+inline bool swipe_action(PageKind kind, Swipe s, NavAction *out) {
+  if (kind == PageKind::SETTINGS) {
+    if (s != Swipe::UP)
+      return false;
+    *out = NavAction::BACK;
+    return true;
+  }
+  switch (s) {
+    case Swipe::LEFT:
+      *out = NavAction::NEXT;
+      break;
+    case Swipe::RIGHT:
+      *out = NavAction::PREV;
+      break;
+    case Swipe::UP:
+      *out = NavAction::OPEN;
+      break;
+    default:
+      *out = NavAction::BACK;
+      break;
+  }
+  return true;
 }
 
 }  // namespace esphome::dial_ui

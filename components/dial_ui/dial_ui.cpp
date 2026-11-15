@@ -243,14 +243,20 @@ void DialUi::on_event_(lv_event_t *e) {
       lv_dir_t dir = lv_indev_get_gesture_dir(indev);
       // Ignore the rest of this touch, so the release is not also read as a tap.
       lv_indev_wait_release(indev);
+      Swipe swipe;
       if (dir == LV_DIR_LEFT)
-        this->nav_(NavAction::NEXT);
+        swipe = Swipe::LEFT;
       else if (dir == LV_DIR_RIGHT)
-        this->nav_(NavAction::PREV);
+        swipe = Swipe::RIGHT;
       else if (dir == LV_DIR_TOP)
-        this->nav_(NavAction::OPEN);
+        swipe = Swipe::UP;
       else if (dir == LV_DIR_BOTTOM)
-        this->nav_(NavAction::BACK);
+        swipe = Swipe::DOWN;
+      else
+        break;
+      NavAction action;
+      if (swipe_action(this->page_.kind, swipe, &action))
+        this->nav_(action);
       break;
     }
     case LV_EVENT_PRESSED:

@@ -52,7 +52,17 @@ int main() {
   CHECK(!go(settings, NavAction::NEXT, &before).changed);
   CHECK(!go(settings, NavAction::OPEN, &before).changed);
   r = go(settings, NavAction::BACK, &before);
-  CHECK(r.page == room1);
+  CHECK(r.page == room1 && r.slide == Slide::UP);  // Settings leaves upwards
+
+  // Swipes: Settings closes with swipe up only; elsewhere up = deeper, down = back.
+  NavAction a;
+  CHECK(swipe_action(PageKind::SETTINGS, Swipe::UP, &a) && a == NavAction::BACK);
+  CHECK(!swipe_action(PageKind::SETTINGS, Swipe::DOWN, &a));
+  CHECK(!swipe_action(PageKind::SETTINGS, Swipe::LEFT, &a));
+  CHECK(swipe_action(PageKind::ROOM, Swipe::UP, &a) && a == NavAction::OPEN);
+  CHECK(swipe_action(PageKind::ROOM, Swipe::DOWN, &a) && a == NavAction::BACK);
+  CHECK(swipe_action(PageKind::SENSOR, Swipe::LEFT, &a) && a == NavAction::NEXT);
+  CHECK(swipe_action(PageKind::SENSOR, Swipe::RIGHT, &a) && a == NavAction::PREV);
 
   if (failures == 0)
     std::printf("All nav tests passed\n");
