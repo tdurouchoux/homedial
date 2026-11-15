@@ -23,6 +23,9 @@ esphome:
 esp32:
   variant: esp32s3
   flash_mode: dio
+  # StampS3 = ESP32-S3FN8: 8 MB flash, no PSRAM (M5Stack Dial docs). Changing this changes the
+  # partition table: flash over USB once after changing it; OTA works again afterwards.
+  flash_size: 8MB
   framework:
     type: esp-idf
 

@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1–M3 confirmed on the device; M4 partly (history needs hours of uptime). M5 (Weather now + hourly forecast) written, unit-tested and compiled (flash 78.7 %, RAM 32 %); awaiting on-device check with real Météo-France entities.
+Status: M1–M3 confirmed on the device; M4 partly (history needs hours of uptime). M5 (Weather now + hourly forecast) written, unit-tested and compiled (flash 78.7 % of 1.75 MB, now 36.7 % of 3.75 MB with `flash_size: 8MB`; RAM 32 %); awaiting on-device check with real Météo-France entities.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.

@@ -30,7 +30,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 ```
 
 ## Hardware reference (M5Stack Dial v1.1, from M5Stack / devices.esphome.io)
-- Board: ESP32-S3 (StampS3), `esp32: variant: esp32s3`, framework `esp-idf`, `platformio_options: board_build.flash_mode: dio`.
+- Board: ESP32-S3FN8 (StampS3, 8 MB flash, no PSRAM), `esp32: variant: esp32s3`, `flash_mode: dio`, `flash_size: 8MB`, framework `esp-idf`.
 - I2C: SDA GPIO11, SCL GPIO12. RTC PCF8563 @0x51, touch FT5x06 @0x38 (interrupt pin unsupported, leave unset), NFC RC522 @0x28.
 - SPI: MOSI GPIO5, CLK GPIO6. Display GC9A01A: CS GPIO7, DC GPIO4, RESET GPIO8, `invert_colors: true`. Backlight LEDC GPIO9 (exposed as light `display_backlight`).
 - Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery; a `gpio` switch `power_hold` with `restore_mode: ALWAYS_ON`). GPIO3 and GPIO46 are strapping pins: the warning is silenced with `ignore_strapping_warning`.
@@ -40,7 +40,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 ## Known state
 - Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) runs on the device (full check needs hours of uptime). M5 (Weather now, hourly forecast) compiles; not yet confirmed on the device.
 - Host unit tests for the LVGL-free `model_*` files: `tests/host/run.sh`.
-- Flash budget: the stock Montserrat 40 and 48 fonts are large; M5 uses 78.7 % of the 1.75 MB app partition (the build assumes 4 MB flash; `flash_size: 8MB` would roughly double the app slot once the chip size is confirmed). Check the size line of each compile.
+- Flash: the StampS3 is an ESP32-S3FN8 (8 MB flash, no PSRAM, per M5Stack's Dial docs); `esp32: flash_size: 8MB` gives two 3.75 MB OTA app slots. M5 uses 36.7 % of one. Check the size line of each compile.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.
