@@ -1,0 +1,18 @@
+<!-- @dsCard group="Foundations" height=300 width=640 subtitle="240 x 240 round display zones" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"><style>*{box-sizing:border-box}
+body{margin:0;padding:20px 16px;background:var(--surface);color:var(--ink);font-family:var(--font-sans)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:12px;line-height:14px;color:var(--ink-muted);text-align:center}
+.disc{position:relative;width:240px;height:240px;border-radius:50%;background:var(--bg);overflow:hidden;flex:none}
+.disc>svg{position:absolute;left:0;top:0;width:240px;height:240px}
+.abs{position:absolute;left:0;width:240px;text-align:center;white-space:nowrap;margin:0}
+.trk{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}
+.ind{fill:none;stroke:var(--st);stroke-width:10;stroke-linecap:round}
+.s-ok{--st:var(--ok)}.s-warn{--st:var(--warn)}.s-danger{--st:var(--danger)}.s-off{--st:var(--ink-muted)}.s-acc{--st:var(--accent)}
+.stat{display:inline-flex;align-items:center;gap:6px;color:var(--st);font-size:14px;line-height:16px}
+.stat svg{flex:none}
+.dots{display:inline-flex;align-items:center;gap:8px;line-height:0}
+.dots i{display:block;width:8px;height:8px;border-radius:999px;background:var(--line)}
+.dots i.on{width:18px;background:var(--ink)}
+.wrap{display:flex;gap:32px;align-items:flex-start;justify-content:center}.leg{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:10px;max-width:300px}.leg li{display:flex;gap:10px;font-size:14px;line-height:18px}.leg li span{width:16px;height:16px;border-radius:4px;border:1px solid var(--line);flex:none;margin-top:1px}.leg b{font-weight:400;color:var(--ink)}.leg div{color:var(--ink-muted)}.ch{border-collapse:collapse;font-size:14px;line-height:18px;color:var(--ink)}.ch th,.ch td{text-align:left;padding:3px 16px 3px 0;border-bottom:1px solid var(--line)}.ch th{font-weight:400;color:var(--ink-muted)}</style></head><body><div class="wrap"><div class="disc"><svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="111" fill="none" stroke="var(--track)" stroke-width="10"/><circle cx="120" cy="120" r="98" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/><rect x="40" y="40" width="160" height="160" fill="none" stroke="var(--warn)" stroke-width="2" stroke-dasharray="6 4"/><path d="M120 20V220M20 120H220" stroke="var(--track)" stroke-width="1"/><circle cx="120" cy="120" r="119" fill="none" stroke="var(--line)" stroke-width="2"/></svg></div><div><ul class="leg"><li><span style="background:var(--track)"></span><div><b>Bezel ring</b><br>r 106 to 116: ring-w 10, ring-inset 4. Arcs only.</div></li><li><span style="background:var(--accent)"></span><div><b>Content circle</b><br>r 98: content-r. Text and widgets stay inside.</div></li><li><span style="background:var(--warn)"></span><div><b>Safe box</b><br>160 x 160: safe-box. Any rectangle that must not be clipped.</div></li><li><span style="background:var(--line)"></span><div><b>Display edge</b><br>r 120. 240 x 240 framebuffer.</div></li></ul><table class="ch"><tr><th>Distance d from centre</th><th>Max row width</th></tr><tr><td>0</td><td>196</td></tr><tr><td>40</td><td>179</td></tr><tr><td>60</td><td>155</td></tr><tr><td>80</td><td>113</td></tr><tr><td>90</td><td>78</td></tr></table><div class="cap" style="text-align:left;margin-top:6px">Width = 2·√(98² − d²), px.</div></div></div></body></html>

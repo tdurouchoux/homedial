@@ -1,0 +1,18 @@
+<!-- @dsCard group="Status and navigation" height=300 width=660 subtitle="page position in the bottom opening" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"><style>*{box-sizing:border-box}
+body{margin:0;padding:20px 16px;background:var(--surface);color:var(--ink);font-family:var(--font-sans)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:12px;line-height:14px;color:var(--ink-muted);text-align:center}
+.disc{position:relative;width:240px;height:240px;border-radius:50%;background:var(--bg);overflow:hidden;flex:none}
+.disc>svg{position:absolute;left:0;top:0;width:240px;height:240px}
+.abs{position:absolute;left:0;width:240px;text-align:center;white-space:nowrap;margin:0}
+.trk{fill:none;stroke:var(--track);stroke-width:10;stroke-linecap:round}
+.ind{fill:none;stroke:var(--st);stroke-width:10;stroke-linecap:round}
+.s-ok{--st:var(--ok)}.s-warn{--st:var(--warn)}.s-danger{--st:var(--danger)}.s-off{--st:var(--ink-muted)}.s-acc{--st:var(--accent)}
+.stat{display:inline-flex;align-items:center;gap:6px;color:var(--st);font-size:14px;line-height:16px}
+.stat svg{flex:none}
+.dots{display:inline-flex;align-items:center;gap:8px;line-height:0}
+.dots i{display:block;width:8px;height:8px;border-radius:999px;background:var(--line)}
+.dots i.on{width:18px;background:var(--ink)}
+.chip2{background:var(--bg);padding:16px 22px;border-radius:12px}</style></head><body><div class="row" style="align-items:center"><div class="cell"><div class="disc"><svg viewBox="0 0 240 240"><path class="trk" d="M41.5 198.5A111 111 0 1 1 198.5 198.5"/><path class="ind s-ok" d="M41.5 198.5A111 111 0 0 1 179.5 26.3"/></svg><div class="abs value-xl" style="top:84px;color:var(--ink);">23.4</div><div class="abs" style="top:222px;line-height:0"><span class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></span></div></div><div class="cap">5 pages, third active, at top 222</div></div><div class="cell"><div class="chip2"><span class="dots"><i class="on"></i><i></i><i></i></span></div><div class="cap">3 pages</div></div><div class="cell"><div class="chip2"><span class="dots" style="gap:6px"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i></span></div><div class="cap">7 pages (maximum), 6 px gaps</div></div></div></body></html>

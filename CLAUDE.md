@@ -103,3 +103,11 @@ components/dial_ui/    # __init__.py, dial_ui.h, dial_ui.cpp
 ### Notes on the references
 - Prefer the docs of the ESPHome version actually installed. The site documents the latest release, and the C++ API docs are versioned.
 - When an API or config key is uncertain, check the ESPHome source (`esphome/components/lvgl/`) or the API docs above instead of guessing.
+
+## Design system (Dialed)
+The UI design system lives in `design/`. Read it before writing any UI code.
+- `design/README.md`: principles, metric types, input/gesture vocabulary, iconography.
+- `design/tokens.json` + `design/lvgl/ui_tokens.h`: single source of truth for colours, spacing, sizes. Never hardcode values; use the `DIALED_*` macros.
+- `design/lvgl.md`: LVGL mapping (fonts, arcs, charts, gestures, encoder groups).
+- `design/components/<Name>/README.md` + `preview.html`: one component each; build components first, then screens.
+- The screen graph and navigation are defined by this project (UI spec above), not by the design system.

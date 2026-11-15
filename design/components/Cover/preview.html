@@ -1,0 +1,31 @@
+<!-- @dsCard height=300 -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap"><style>
+html,body{margin:0}body{background:var(--bg)}svg{display:block;width:960px;height:300px}
+.a{fill:var(--accent)}.s2{fill:var(--surface-2)}.wn{fill:var(--warn)}.o{fill:var(--ok)}
+.tile{rx:var(--radius-md)}
+.cut{fill:none;stroke:var(--bg);stroke-width:10;stroke-linecap:round}
+.cut2{fill:none;stroke:var(--accent);stroke-width:6;stroke-linecap:round}
+.nm{font-family:var(--font-sans);font-size:104px;fill:var(--ink)}
+.tg{font-family:var(--font-sans);font-size:14px;fill:var(--ink-muted)}
+</style></head><body>
+<svg viewBox="0 0 960 300">
+<!-- blocks: accent 212x324 slab (bleeds top and bottom), surface-2 248x162, warn 76x150, ok 160x84.
+     arrangement: one tall accent slab with three satellites to its right, bleeding off the top, right and bottom edges.
+     pattern: concentric 270-degree gauge arcs, ring-w 10, cut from the accent slab in bg; two thin arcs in accent on the surface-2 block. Chosen because the one shape this system draws is the gauge ring.
+     steps and radii: radius-md corners on every block; arc pitch 22 = ring-w + 12. -->
+<rect class="a tile" x="500" y="-12" width="212" height="324"/>
+<rect class="s2 tile" x="724" y="-12" width="248" height="162"/>
+<rect class="wn tile" x="724" y="162" width="76" height="150"/>
+<rect class="o tile" x="812" y="162" width="160" height="84"/>
+<g transform="rotate(135 606 150)">
+<circle class="cut" cx="606" cy="150" r="44" stroke-dasharray="152 124.5"/>
+<circle class="cut" cx="606" cy="150" r="66" stroke-dasharray="249 166"/>
+<circle class="cut" cx="606" cy="150" r="88" stroke-dasharray="394 159"/>
+</g>
+<g transform="rotate(135 850 70)">
+<circle class="cut2" cx="850" cy="70" r="28" stroke-dasharray="123 53"/>
+<circle class="cut2" cx="850" cy="70" r="44" stroke-dasharray="152 124.5"/>
+</g>
+<text class="nm" x="36" y="214">Dialed</text>
+<text class="tg" x="40" y="246">Round sensor UI for LVGL, 240 x 240</text>
+</svg></body></html>
