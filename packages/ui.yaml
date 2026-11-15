@@ -17,6 +17,18 @@ dial_ui:
         - metric: air_quality
           sensor: living_room_iaq
           history: true
+    - id: kitchen   # PLACEHOLDER room: check the sensors in packages/ha_entities.yaml
+      name: Kitchen
+      metrics:
+        - metric: temperature
+          sensor: kitchen_temperature
+          history: true
+        - metric: humidity
+          sensor: kitchen_humidity
+          history: true
+        - metric: air_quality
+          sensor: kitchen_iaq
+          history: true
   weather:
     temperature: outdoor_temperature
     condition: weather_condition

@@ -9,6 +9,16 @@ sensor:
   - platform: homeassistant
     id: living_room_iaq
     entity_id: sensor.livingroom_air_quality_index   # BME688 BSEC IAQ index (0 to 500)
+  # Kitchen: PLACEHOLDER ids, replace with your entities.
+  - platform: homeassistant
+    id: kitchen_temperature
+    entity_id: sensor.kitchen_temperature
+  - platform: homeassistant
+    id: kitchen_humidity
+    entity_id: sensor.kitchen_humidity
+  - platform: homeassistant
+    id: kitchen_iaq
+    entity_id: sensor.kitchen_air_quality_index   # BME688 BSEC IAQ index (0 to 500)
 
 # Météo-France (spec.md "Weather"). PLACEHOLDER ids: replace `weather.home` and
 # `sensor.home_next_rain` with your entities (Settings > Entities in Home Assistant).
