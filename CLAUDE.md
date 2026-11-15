@@ -60,17 +60,34 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Work in small steps (one screen or widget at a time) and keep the config compiling between steps.
 
 ## UI spec (to be defined)
-- Pages/screens: TBD (pick from the design's screen components)
-- Navigation table (which page opens which; one table shared by touch and encoder): TBD
+- Pages/screens (draft from the user's navigation sketch; carousel order is still TBD, see open questions):
+  - Level 0, carousel (encoder turn / swipe left-right): Parameters (leftmost), Weather now, one Room summary per room, Electricity (Power). Weather is meant to be the third page.
+  - Level 1 (encoder press / swipe up = deeper; long press / swipe down = back):
+    - Parameters -> option list (luminosity, sound, shutdown; exact rows TBD)
+    - Room summary -> Sensor pages: Temperature, Humidity, others only if the room has the sensor (turn / swipe between siblings)
+    - Weather now and Electricity: no level 1
+  - Level 2 (turn / swipe act only inside the page, never navigate):
+    - Option list -> Adjust luminosity, Adjust buzzer volume
+    - Weather now -> Hourly forecast (no level 1 in between)
+    - Sensor page -> History of that metric in that room
+  - Dropped for now: Energy history (it would need on-device data storage).
+- Navigation table (one table shared by touch and encoder): the tree above is the draft; to be written as a single table once the open questions are answered.
+- Jump to Parameters: encoder long press at level 0 and a 600 ms touch hold open the Parameters page (replaces the design's "open the settings list"). Swipe up is not usable for this, since on level 0 it already means "go deeper".
+- Alerts: soft, visual only. They never need user action and are not dismissed by the user. Exact visual form is TBD.
 - HA entities to display (rooms, metrics, limits, power, energy, weather): TBD
 - Settings and HA actions triggered from the UI: TBD
 - Language: TBD (English fits stock ASCII fonts; French needs Latin-1 custom fonts)
 - Theme: TBD (dark only or dark + day)
-- Inputs: defined by the design system (`design/README.md` "Input"): encoder turn / press / long press (600 ms = back, or settings at top level), touch tap / swipe / hold. One physical button only.
+- Inputs: defined by the design system (`design/README.md` "Input"): encoder turn / press / long press (600 ms = back; at level 0 = jump to Parameters), touch tap / swipe / hold. One physical button only.
 - Look and feel: defined by the design system (tokens, Montserrat sizes, flat style, motion at or under 250 ms).
-- Screen wake/sleep: per the design, dim to 30% after 30 s without input, wake on any input or on an ALERT. This replaces the earlier "button toggles backlight" and "auto-off" behavior.
+- Screen wake/sleep: per the design, dim to 30% after 30 s without input, wake on any input. Whether an alert also wakes the screen is TBD. Shutdown: the user needs a way to turn the screen off and optionally the whole device (details TBD).
+- Design changes needed to match these decisions (to be applied in `design/`, not done yet): ScreenHistory loses the room-to-room swipe/turn; ScreenAlert and the input table change to soft, non-blocking alerts (no mute, no takeover); ScreenEnergy is dropped; the settings jump moves to Parameters; Parameters and its option list need their own spec.
 
 ## Open questions
+- Carousel order and wrap-around (Parameters leftmost, Weather third; wrap or stop at the ends), and which page shows at boot and on wake.
+- Shutdown behavior: screen off (backlight) and optional device off (HOLD low only powers off on battery).
+- Where the weather city, contract limit and alert thresholds are configured (device settings, YAML or HA).
+- Visual form of soft alerts, and whether they wake the screen.
 - Exact ESPHome version and bundled LVGL version.
 - Final display platform (`ili9xxx` vs `mipi_spi`).
 - Whether NFC and the RTC are needed.
