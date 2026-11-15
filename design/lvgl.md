@@ -45,6 +45,8 @@ For the value editor keep the knob: set its colour to `DIALED_INK`, pad 4, and l
 ## Encoder
 Put every focusable object in an `lv_group_t`, assign it with `lv_indev_set_group`, and use `LV_INDEV_TYPE_ENCODER`. A list row is focusable; pressing it enters edit mode (`lv_group_set_editing`), turning changes the value, pressing again leaves. Apply the focused and edited looks with `LV_STATE_FOCUSED` and `LV_STATE_EDITED` styles.
 
+Single button: the encoder push is the only required button. `LV_EVENT_CLICKED` (short press, under 600 ms) selects. For back, send `LV_EVENT_LONG_PRESSED` (600 ms, set with `lv_indev_set_long_press_time` on the encoder indev) to one handler that pops a screen, cancels an edit or scrub, or at the top level opens settings. In ESPHome the push is a `binary_sensor` with `on_click` (`min_length`/`max_length`) to tell short from long. An optional second button just calls the same back handler.
+
 ## Performance
 - No shadows, no blur, no gradients, no image recolour (weather icons are a font, see below); they cost frame time on a small MCU.
 - Use `LV_DISPLAY_RENDER_MODE_PARTIAL` with a buffer of at least 1/10 of the screen. Update readings at 1 Hz, not per sample.

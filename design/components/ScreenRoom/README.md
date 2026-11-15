@@ -6,5 +6,5 @@ Consumer provides: the room name (12 characters or fewer) and, for each sensor t
 - Room name in `label` / `ink` at top 30, with its optional RoomIcon (16 px, 6 px gap) in front, icon and name centred as one line; PageDots at top 222. No ring, no separator lines, no status words. With no ring on this page, the header may use the full disc down to r 112.
 - State is the colour of the value alone: `ink` when OK, `warn` for WARN, `danger` for ALERT. An offline sensor shows `--` in `ink-muted` and keeps its place. The state spelled out in words is one tap away, on the Sensor page.
 - Touch: each reading is a target (its half or third of the content circle, never smaller than 82 x 58 px); tapping opens that metric's Sensor page. Pressed state: `surface-2` fill, `radius-md`. Encoder press or swipe up opens the room's Sensor pages from Temperature.
-- Swipe left and right (or turn) moves to the next room; Button A has no action here.
+- Swipe left and right (or turn) moves to the next room; long press opens settings from here (top level).
 - Don't show a second room, add icons or trends, or shrink the type to fit a fifth reading.

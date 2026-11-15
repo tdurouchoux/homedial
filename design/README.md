@@ -32,25 +32,24 @@ Weather, power and energy follow the anatomy of the Sensor page (names on top, h
 - **Motion.** Keep every animation at or under 250 ms: arc value `lv_anim_path_ease_out`, page change a 200 ms horizontal slide, alert ring pulse between full and `opa-disabled` opacity at 800 ms. Nothing else moves.
 
 ## Input
-Design every screen for all three inputs; none may be required alone. Touch and the encoder overlap on purpose: touch is quicker for jumping (a reading, a swipe), the encoder is the precise and eyes-free path, and both must reach every screen.
+Design every screen for all three inputs; none may be required alone. The hardware has **one** physical button (on the M5Stack Dial it is the encoder push), so the encoder alone (turn, press, long press) must reach every screen and every action. A second button is optional and only adds shortcuts; no function may depend on it. Touch and the encoder overlap on purpose: touch is quicker for jumping (a reading, a swipe), the encoder is the precise and eyes-free path, and both must reach every screen.
 
 | Input | Action |
 | --- | --- |
 | Encoder turn | Previous/next page; in a list, move focus; in an editor, change the value by one step (accelerate on fast turns). |
-| Encoder press | Select the focused row; confirm an edit; mute a visible alert. |
-| Encoder press on History | Start scrub on the latest sample; turn moves the cursor one sample; press or Button A ends it. |
-| Encoder long press (600 ms) | Open the settings list; from an editor, cancel and go back. |
-| Button A | Back, one level up. |
-| Button B | Acknowledge or mute the active alert from any screen. |
+| Encoder press (the one button) | Select the focused row; confirm an edit; mute a visible alert. |
+| Encoder press on History | Start scrub on the latest sample; turn moves the cursor one sample; press or long press ends it. |
+| Encoder long press (600 ms) | Back, one level up (from an editor: cancel; from a scrub: end it). At the top level there is nothing to go back to, so it opens the settings list. |
+| Optional second button | Shortcut only: short press = back, same as long press; never required. |
 | Tap | Same as press on the tapped row or control; targets are 40 px or larger. On a Room page, a tap on a reading opens that metric's Sensor page directly. |
 | Swipe left or right | Next or previous sibling at the same depth: the next page of a carousel, the next item of a series. |
 | Swipe up | Go deeper: open the detail of the current page, same as press. |
-| Swipe down | Back one level, same as Button A. Nothing at the top level. |
+| Swipe down | Back one level, same as long press. Nothing at the top level. |
 | Touch and hold 250 ms on a chart, then drag | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
-| Touch and hold 600 ms anywhere else | Open the settings list, same as encoder long press. |
+| Touch and hold 600 ms anywhere else | Open the settings list (touch-only shortcut; the encoder reaches it by long press at the top level). |
 
 
-**Navigation.** Every input uses one vocabulary: horizontal moves between siblings, up goes deeper, down goes back, and the page slide follows the gesture (200 ms). Which page opens which is defined in the project, not in this system; keep it as one table that touch, encoder and buttons all use.
+**Navigation.** Every input uses one vocabulary: horizontal moves between siblings, up goes deeper, down goes back, and the page slide follows the gesture (200 ms). Which page opens which is defined in the project, not in this system; keep it as one table that touch and encoder both use.
 
 ## Iconography
 Use the LVGL symbol glyphs that ship inside the Montserrat fonts: `LV_SYMBOL_WIFI`, `LV_SYMBOL_BATTERY_3`, `LV_SYMBOL_OK`, `LV_SYMBOL_WARNING`, `LV_SYMBOL_CLOSE`, `LV_SYMBOL_LEFT`, `LV_SYMBOL_RIGHT`, `LV_SYMBOL_SETTINGS`. They render in the label colour at 14 or 16 px. The previews here draw close SVG stand-ins (2 px strokes, rounded ends), not the font glyphs themselves. Status glyph shapes: check = OK, triangle = WARN, cross = ALERT, dashed ring = OFFLINE. Weather conditions use the six-glyph set in WeatherIcon (clear, part cloudy, cloudy, rain, snow, storm), a custom icon font in `ink`, always next to the condition word. Rooms may have an optional 16 px icon from the eight-glyph RoomIcon set, in `ink`, always next to the room name.
