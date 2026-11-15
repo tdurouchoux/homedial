@@ -121,6 +121,15 @@ int main() {
   CHECK(nav_apply(room1, NavAction::NEXT, p_only, &before).page == power);
   CHECK(carousel_index(power, p_only) == 2);
 
+  // Adjust: back (cancel) returns to Settings; nothing else changes page.
+  Page adj{PageKind::ADJUST, 0, 1};
+  CHECK(!nav_apply(adj, NavAction::NEXT, wp, &before).changed);
+  CHECK(!nav_apply(adj, NavAction::OPEN, wp, &before).changed);
+  r = nav_apply(adj, NavAction::BACK, wp, &before);
+  CHECK(r.page.kind == PageKind::SETTINGS && r.slide == Slide::DOWN);
+  CHECK(swipe_action(PageKind::ADJUST, Swipe::DOWN, &a) && a == NavAction::BACK);
+  CHECK(!swipe_action(PageKind::ADJUST, Swipe::UP, &a));
+
   if (failures == 0)
     std::printf("All nav tests passed\n");
   return failures == 0 ? 0 : 1;

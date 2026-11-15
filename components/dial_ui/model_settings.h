@@ -1,0 +1,64 @@
+#pragma once
+// Settings model (spec.md "Settings list"). Pure C++, host-tested.
+
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+
+namespace esphome::dial_ui {
+
+enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, SCREEN_OFF, POWER_OFF, EXIT };
+constexpr size_t SETTINGS_ROWS = 5;
+
+inline const char *settings_label(SettingsRow r) {
+  static const char *const L[SETTINGS_ROWS] = {"Luminosity", "Buzzer vol.", "Screen off", "Power off", "Exit"};
+  return L[static_cast<size_t>(r)];
+}
+
+// An adjustable value (ScreenAdjust): range, step and default (spec.md, decided 2026-11-15).
+struct AdjustSpec {
+  const char *name;  // shown on the Adjust page
+  int min;
+  int max;
+  int step;
+  int def;
+};
+
+inline const AdjustSpec &adjust_spec(SettingsRow r) {
+  // Luminosity never reaches 0 from Settings ("Screen off" does that).
+  static const AdjustSpec LUM{"Luminosity", 10, 100, 5, 100};
+  static const AdjustSpec VOL{"Buzzer volume", 0, 100, 10, 50};
+  return r == SettingsRow::BUZZER ? VOL : LUM;
+}
+
+inline bool is_adjustable(SettingsRow r) { return r == SettingsRow::LUMINOSITY || r == SettingsRow::BUZZER; }
+
+inline int clamp_setting(const AdjustSpec &s, int v) {
+  if (v < s.min)
+    return s.min;
+  if (v > s.max)
+    return s.max;
+  // Snap onto the step grid from min.
+  return s.min + ((v - s.min + s.step / 2) / s.step) * s.step;
+}
+
+// One detent = one step; after 4 fast detents (< 120 ms apart) the step doubles (design ScreenAdjust).
+class DetentAccel {
+ public:
+  static constexpr uint32_t FAST_MS = 120;
+  int steps(uint32_t now_ms, int dir) {
+    if (dir != this->last_dir_ || now_ms - this->last_ms_ > FAST_MS)
+      this->run_ = 0;
+    this->run_++;
+    this->last_ms_ = now_ms;
+    this->last_dir_ = dir;
+    return this->run_ > 4 ? 2 : 1;
+  }
+
+ protected:
+  uint32_t last_ms_{0};
+  int last_dir_{0};
+  int run_{0};
+};
+
+}  // namespace esphome::dial_ui

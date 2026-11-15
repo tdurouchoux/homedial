@@ -8,12 +8,12 @@
 
 namespace esphome::dial_ui {
 
-enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, WEATHER, FORECAST, POWER, SETTINGS };
+enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, WEATHER, FORECAST, POWER, SETTINGS, ADJUST };
 
 struct Page {
   PageKind kind{PageKind::ROOM};
   size_t room{0};   // ROOM / SENSOR: room index; level-0 position for the carousel
-  size_t index{0};  // SENSOR / HISTORY: reading index in the room
+  size_t index{0};  // SENSOR / HISTORY: reading index in the room; ADJUST: settings row
   bool operator==(const Page &o) const { return kind == o.kind && room == o.room && index == o.index; }
 };
 
@@ -120,7 +120,15 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
         r.slide = Slide::DOWN;
       }
       break;
+    case PageKind::ADJUST:
+      // Level S+1 editor: turn changes the value, press saves (handled by the page); back cancels.
+      if (a == NavAction::BACK) {
+        r.page = Page{PageKind::SETTINGS, 0, 0};
+        r.slide = Slide::DOWN;
+      }
+      break;
     case PageKind::SETTINGS:
+      // Turn moves the row focus and press opens a row (handled by the page); back closes Settings.
       if (a == NavAction::BACK) {
         r.page = *before_settings;  // returns to the page you left
         r.slide = Slide::UP;        // Settings sits above the carousel: it leaves upwards
@@ -143,7 +151,7 @@ inline bool swipe_action(PageKind kind, Swipe s, NavAction *out) {
     *out = NavAction::BACK;
     return true;
   }
-  if (kind == PageKind::HISTORY || kind == PageKind::FORECAST) {  // only swipe down (back) changes page
+  if (kind == PageKind::HISTORY || kind == PageKind::FORECAST || kind == PageKind::ADJUST) {  // only swipe down (back)
     if (s != Swipe::DOWN)
       return false;
     *out = NavAction::BACK;

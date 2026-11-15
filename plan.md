@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1–M5 confirmed on the device (M4 history needs hours of uptime for a full check). M6 (Electricity) written, unit-tested and compiled (flash 36.8 % of 3.75 MB, RAM 32 %); awaiting on-device check.
+Status: M1–M6 confirmed on the device (M4 history needs hours of uptime for a full check). M7 (Settings) written, unit-tested and compiled (flash 36.9 %, RAM 32 %); awaiting on-device check.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -58,6 +58,7 @@ tests/host/                   # g++ unit tests for model/
 *Done:* `model_power.h` (host-tested), `screen_power.*`, Electricity as the last carousel page in `model_nav.h`, `power: {sensor, contract_limit}` schema, carousel limit of 7 pages validated, ring sweep on arrival, Settings reachable from every carousel page.
 
 **M7 – Settings.** ListMenu, ScreenAdjust; luminosity (`backlight: use_id(light.LightState)`), buzzer volume (`buzzer: use_id(output.FloatOutput)`), both persisted via `global_preferences`; Screen off; Power off (`power_hold: use_id(switch_.Switch)`); Exit.
+*Done:* `model_settings.h` (rows, ranges, detent acceleration; host-tested), `screen_settings.*` (ListMenu: three rows, thumb), `screen_adjust.*` (ring slider, OK button), ADJUST in `model_nav.h`, encoder tick on `buzzer`, minimal wake from Screen off (first input swallowed) ahead of M8.
 
 **M8 – Dim and sleep.** 30 s → 30 %, 60 s → off, wake on any input, first input after screen-off swallowed; alerts don't wake.
 

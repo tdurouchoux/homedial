@@ -5,16 +5,22 @@
 
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
+#include "esphome/core/preferences.h"
 #include "esphome/core/helpers.h"
 #include "esphome/components/lvgl/lvgl_esphome.h"
 #include "esphome/components/json/json_util.h"
+#include "esphome/components/light/light_state.h"
+#include "esphome/components/output/float_output.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/switch/switch.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/time/real_time_clock.h"
 
 #include "model_nav.h"
 #include "model_weather.h"
 #include "model_room.h"
+#include "model_settings.h"
+#include "screen_adjust.h"
 #include "screen_forecast.h"
 #include "screen_history.h"
 #include "screen_power.h"
@@ -37,6 +43,10 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor *forecast_time);
   // Electricity: live power in W and the contract limit in W (spec.md "Data decisions").
   void set_power(sensor::Sensor *power, float limit_w);
+  // Settings targets (spec.md "Settings list").
+  void set_backlight(light::LightState *backlight) { this->backlight_ = backlight; }
+  void set_buzzer(output::FloatOutput *buzzer) { this->buzzer_ = buzzer; }
+  void set_power_hold(switch_::Switch *hold) { this->power_hold_ = hold; }
   // YAML `on_forecast_request:` runs weather.get_forecasts and hands the compacted rows back:
   //   on_success: - lambda: id(ui).load_forecast(response["response"]);
   Trigger<> *get_forecast_request_trigger() { return &this->forecast_request_trigger_; }
@@ -60,6 +70,18 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   int64_t now_epoch_() const;
   void refresh_weather_();
   void maybe_request_forecast_(bool force);
+
+  // Settings
+  void apply_luminosity_(int percent);
+  void tick_();
+  void save_settings_();
+  void activate_row_(SettingsRow row);
+  void open_adjust_(SettingsRow row);
+  void adjust_by_(int delta_steps);
+  void screen_off_();
+  void wake_();
+  static void adjust_event_cb_(lv_event_t *e);
+  bool settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
 
   // History page: scrub with the encoder (press, turn) or touch (hold 250 ms on the chart, drag).
   bool history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
@@ -95,6 +117,19 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ScreenWeather weather_screen_;
   ScreenForecast forecast_screen_;
   ScreenPower power_screen_;
+  ScreenAdjust adjust_screen_;
+
+  light::LightState *backlight_{nullptr};
+  output::FloatOutput *buzzer_{nullptr};
+  switch_::Switch *power_hold_{nullptr};
+  ESPPreferenceObject pref_;
+  int luminosity_{100};  // saved settings (adjust_spec defaults until loaded)
+  int volume_{50};
+  int adjust_value_{0};  // value being edited on the Adjust page
+  DetentAccel accel_;
+  bool screen_off_state_{false};
+  bool hold_released_{false};        // Power off turned HOLD off (still running: on USB)
+  uint8_t swallow_encoder_click_{0};  // the press that woke the screen is not acted on (1: down, 2: released)
   bool has_power_{false};
   float power_w_{NAN};
   float power_limit_w_{0};

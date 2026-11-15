@@ -4,6 +4,10 @@
 dial_ui:
   id: ui
   time_id: ha_time   # wall clock for history (packages/hardware.yaml)
+  # Settings targets (packages/hardware.yaml): luminosity, encoder tick, Power off (HOLD).
+  backlight: display_backlight
+  buzzer: buzzer
+  power_hold: power_hold
   rooms:
     - id: living
       name: Living room

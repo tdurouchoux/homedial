@@ -8,7 +8,7 @@ from pathlib import Path
 
 from esphome import automation
 import esphome.codegen as cg
-from esphome.components import sensor, text_sensor, time
+from esphome.components import light, output, sensor, switch, text_sensor, time
 from esphome.components.lvgl.defines import CONF_LVGL_ID
 from esphome.components.lvgl.lvcode import LvglComponent
 import esphome.config_validation as cv
@@ -38,6 +38,9 @@ CONF_RAIN_FORECAST = "rain_forecast"
 CONF_RAIN_FORECAST_TIME = "rain_forecast_time"
 CONF_ON_FORECAST_REQUEST = "on_forecast_request"
 CONF_POWER = "power"
+CONF_BACKLIGHT = "backlight"
+CONF_BUZZER = "buzzer"
+CONF_POWER_HOLD = "power_hold"
 CONF_CONTRACT_LIMIT = "contract_limit"
 MAX_CAROUSEL_PAGES = 7  # PageDots fit 3 to 7 pages (design/components/PageDots)
 CONF_WARN_LOW = "warn_low"
@@ -185,6 +188,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ROOMS, default=[]): cv.All(cv.ensure_list(ROOM_SCHEMA), _validate_rooms),
         cv.Optional(CONF_WEATHER): WEATHER_SCHEMA,
         cv.Optional(CONF_POWER): POWER_SCHEMA,
+        # Settings targets (spec.md "Settings list"): luminosity, encoder tick, Power off.
+        cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
+        cv.Optional(CONF_BUZZER): cv.use_id(output.FloatOutput),
+        cv.Optional(CONF_POWER_HOLD): cv.use_id(switch.Switch),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time, _validate_carousel)
@@ -240,3 +247,10 @@ async def to_code(config):
     if power := config.get(CONF_POWER):
         sens = await cg.get_variable(power[CONF_SENSOR])
         cg.add(var.set_power(sens, power[CONF_CONTRACT_LIMIT]))
+
+    if CONF_BACKLIGHT in config:
+        cg.add(var.set_backlight(await cg.get_variable(config[CONF_BACKLIGHT])))
+    if CONF_BUZZER in config:
+        cg.add(var.set_buzzer(await cg.get_variable(config[CONF_BUZZER])))
+    if CONF_POWER_HOLD in config:
+        cg.add(var.set_power_hold(await cg.get_variable(config[CONF_POWER_HOLD])))

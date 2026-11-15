@@ -1,35 +1,41 @@
 #pragma once
-// Settings page placeholder (M3). The ListMenu rows (Luminosity, Buzzer vol., Screen off,
-// Power off, Exit) arrive in M7; until then this page only proves the navigation.
+// Settings list (design/components/ListMenu; spec.md "Settings list"): three rows visible,
+// the focused one in the middle (accent fill), a scroll thumb on the right of the ring.
 
+#include "model_settings.h"
 #include "widget_common.h"
 
 namespace esphome::dial_ui {
 
 class ScreenSettings {
  public:
-  void create() {
-    this->screen_ = create_screen();
-    lv_obj_t *title = create_text(this->screen_, DIALED_FONT_TITLE, DIALED_INK, 0);
-    this->title_ = title;
-    lv_label_set_text(title, "Settings");
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -DIALED_SPACE_3);
-    lv_obj_t *hint = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, 0);
-    this->hint_ = hint;
-    lv_label_set_text(hint, "Hold to go back");
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, DIALED_SPACE_5);
+  void create();
+  void set_values(int luminosity, int volume);
+  // Focus row `i`; dir (-1 / +1 / 0) nudges the rows the way the list moved.
+  void set_focus(size_t i, int dir = 0);
+  size_t focus() const { return this->focus_; }
+  // Row index for a tapped row box, or -1.
+  int row_for(lv_obj_t *target) const;
+  void nudge(int32_t dy) {
+    for (size_t k = 0; k < 3; k++)
+      nudge_in(this->slots_[k].box, 0, dy, static_cast<uint32_t>(k) * 30);
   }
   lv_obj_t *screen() const { return this->screen_; }
-  // Settings opens from above: its content drops into place (rows will stagger in M7).
-  void nudge(int32_t dy) {
-    nudge_in(this->title_, 0, dy);
-    nudge_in(this->hint_, 0, dy, 30);
-  }
 
  protected:
+  struct Slot {
+    lv_obj_t *box{nullptr};
+    lv_obj_t *title{nullptr};
+    lv_obj_t *value{nullptr};  // focused slot only
+    int row{-1};
+  };
+  void draw_();
+
   lv_obj_t *screen_{nullptr};
-  lv_obj_t *title_{nullptr};
-  lv_obj_t *hint_{nullptr};
+  lv_obj_t *thumb_{nullptr};
+  Slot slots_[3];  // previous, focused, next
+  size_t focus_{0};
+  int values_[SETTINGS_ROWS]{-1, -1, -1, -1, -1};
 };
 
 }  // namespace esphome::dial_ui

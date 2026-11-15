@@ -9,6 +9,13 @@
 namespace esphome::dial_ui {
 
 static const char *const TAG = "dial_ui";
+static constexpr uint32_t TICK_MS = 6;              // encoder tick length
+static constexpr float TICK_MAX_LEVEL = 0.5f;       // 50 % duty is the loudest a square wave gets
+static constexpr uint32_t POWER_OFF_GRACE_MS = 1000;  // still running after this: on USB
+struct SettingsPrefs {
+  uint8_t luminosity;
+  uint8_t volume;
+};
 static constexpr uint32_t REFRESH_MS = 1000;      // design: update readings at 1 Hz
 static constexpr uint32_t SETTINGS_HOLD_MS = 600;  // spec: 600 ms touch hold opens Settings
 static constexpr int32_t HOLD_SLOP_PX = 12;        // a hold that moves further is a drag, not a hold
@@ -247,8 +254,23 @@ void DialUi::setup() {
     scr.create();
     this->attach_events_(scr.screen());
   }
+  // Saved settings (ESPHome preferences, not HA).
+  this->luminosity_ = adjust_spec(SettingsRow::LUMINOSITY).def;
+  this->volume_ = adjust_spec(SettingsRow::BUZZER).def;
+  this->pref_ = global_preferences->make_preference<SettingsPrefs>(fnv1_hash("dial_ui_settings"));
+  SettingsPrefs saved;
+  if (this->pref_.load(&saved)) {
+    this->luminosity_ = clamp_setting(adjust_spec(SettingsRow::LUMINOSITY), saved.luminosity);
+    this->volume_ = clamp_setting(adjust_spec(SettingsRow::BUZZER), saved.volume);
+  }
+  this->apply_luminosity_(this->luminosity_);
+
   this->settings_screen_.create();
+  this->settings_screen_.set_values(this->luminosity_, this->volume_);
   this->attach_events_(this->settings_screen_.screen());
+  this->adjust_screen_.create();
+  this->attach_events_(this->adjust_screen_.screen());
+  lv_obj_add_event_cb(this->adjust_screen_.arc(), &DialUi::adjust_event_cb_, LV_EVENT_VALUE_CHANGED, this);
   this->history_screen_.create();
   this->attach_events_(this->history_screen_.screen());
   lv_obj_t *chart = this->history_screen_.chart().obj();
@@ -456,7 +478,16 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->load_(this->forecast_screen_.screen(), slide);
       break;
     }
+    case PageKind::ADJUST:
+      this->adjust_screen_.bind(adjust_spec(static_cast<SettingsRow>(page.index)), this->adjust_value_);
+      this->adjust_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->adjust_screen_.screen(), slide);
+      break;
     case PageKind::SETTINGS:
+      // Leaving Adjust without saving (cancel) restores the saved luminosity.
+      this->apply_luminosity_(this->luminosity_);
+      if (prev.kind != PageKind::ADJUST)
+        this->settings_screen_.set_focus(0);  // Settings opens on its first row
       this->settings_screen_.nudge(arrival_dy(slide, NUDGE_SETTINGS_PX));
       this->load_(this->settings_screen_.screen(), slide);
       break;
@@ -499,6 +530,37 @@ void DialUi::on_event_(lv_event_t *e) {
   bool from_encoder = indev != nullptr && lv_indev_get_type(indev) == LV_INDEV_TYPE_ENCODER;
   bool from_touch = indev != nullptr && lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER;
 
+  // Screen off: any input only wakes the screen and is not acted on (spec.md "Behaviour").
+  if (this->screen_off_state_) {
+    if (code == LV_EVENT_PRESSED || code == LV_EVENT_KEY || code == LV_EVENT_GESTURE) {
+      this->wake_();
+      if (from_touch)
+        lv_indev_wait_release(indev);
+      else if (code == LV_EVENT_PRESSED)
+        this->swallow_encoder_click_ = 1;
+    }
+    return;
+  }
+  // The encoder press that woke the screen: drop it until its release, then drop the
+  // SHORT_CLICKED / CLICKED that LVGL sends after that release (lv_indev.c order).
+  if (from_encoder && this->swallow_encoder_click_ == 1) {
+    if (code == LV_EVENT_RELEASED)
+      this->swallow_encoder_click_ = 2;
+    if (code != LV_EVENT_KEY)
+      return;
+  } else if (from_encoder && this->swallow_encoder_click_ == 2) {
+    if (code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_CLICKED)
+      return;
+    this->swallow_encoder_click_ = 0;
+  }
+  // Encoder tick (user: encoder only, not touch). On Adjust the KEY tick plays after the change.
+  bool adjusting_key = this->page_.kind == PageKind::ADJUST && code == LV_EVENT_KEY;
+  if (from_encoder && (code == LV_EVENT_KEY || code == LV_EVENT_PRESSED) && !adjusting_key)
+    this->tick_();
+
+  if ((this->page_.kind == PageKind::SETTINGS || this->page_.kind == PageKind::ADJUST) &&
+      this->settings_event_(e, code, from_encoder))
+    return;
   if (this->page_.kind == PageKind::HISTORY && this->history_event_(e, code, from_encoder))
     return;
   if (this->page_.kind == PageKind::FORECAST && code == LV_EVENT_KEY) {
@@ -690,6 +752,169 @@ void DialUi::end_scrub_() {
     lv_obj_add_flag(chart, LV_OBJ_FLAG_GESTURE_BUBBLE);
   if (active && this->page_.kind == PageKind::HISTORY)
     this->scrub_to_(-1);
+}
+
+// ---- Settings (spec.md "Settings list"; design ListMenu, ScreenAdjust) ----
+
+bool DialUi::settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder) {
+  lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  if (this->page_.kind == PageKind::SETTINGS) {
+    if (code == LV_EVENT_KEY) {  // turn moves the row focus
+      uint32_t key = lv_event_get_key(e);
+      size_t f = this->settings_screen_.focus();
+      if (key == LV_KEY_RIGHT && f + 1 < SETTINGS_ROWS)
+        this->settings_screen_.set_focus(f + 1, 1);
+      else if (key == LV_KEY_LEFT && f > 0)
+        this->settings_screen_.set_focus(f - 1, -1);
+      return true;
+    }
+    if (code == LV_EVENT_SHORT_CLICKED) {
+      if (from_encoder) {
+        this->activate_row_(static_cast<SettingsRow>(this->settings_screen_.focus()));
+        return true;
+      }
+      // Touch: a tap on the focused row opens it; a tap on a neighbour scrolls it into focus
+      // (swipe up closes Settings, so a swipe cannot scroll the list).
+      int row = this->settings_screen_.row_for(target);
+      if (row < 0)
+        return true;
+      if (static_cast<size_t>(row) == this->settings_screen_.focus())
+        this->activate_row_(static_cast<SettingsRow>(row));
+      else
+        this->settings_screen_.set_focus(static_cast<size_t>(row),
+                                         static_cast<size_t>(row) > this->settings_screen_.focus() ? 1 : -1);
+      return true;
+    }
+    return false;  // long press, swipes: generic (back closes Settings)
+  }
+  // ADJUST
+  if (code == LV_EVENT_KEY) {  // one detent = one step, accelerated on fast turns
+    uint32_t key = lv_event_get_key(e);
+    int dir = key == LV_KEY_RIGHT ? 1 : (key == LV_KEY_LEFT ? -1 : 0);
+    if (dir != 0)
+      this->adjust_by_(dir * this->accel_.steps(millis(), dir));
+    this->tick_();  // after the change: the buzzer page previews the new volume
+    return true;
+  }
+  if (code == LV_EVENT_SHORT_CLICKED && (from_encoder || target == this->adjust_screen_.ok_button())) {
+    this->save_settings_();  // press or OK saves
+    return true;
+  }
+  return false;  // long press / swipe down: back = cancel
+}
+
+void DialUi::adjust_event_cb_(lv_event_t *e) {
+  auto *self = static_cast<DialUi *>(lv_event_get_user_data(e));
+  if (self->page_.kind != PageKind::ADJUST)
+    return;
+  int v = self->adjust_screen_.value_from_arc();  // touch drag on the ring
+  self->adjust_value_ = v;
+  self->adjust_screen_.set_value(v);
+  if (static_cast<SettingsRow>(self->page_.index) == SettingsRow::LUMINOSITY)
+    self->apply_luminosity_(self->adjust_screen_.value());
+}
+
+void DialUi::adjust_by_(int delta_steps) {
+  if (delta_steps == 0)
+    return;
+  SettingsRow row = static_cast<SettingsRow>(this->page_.index);
+  const AdjustSpec &spec = adjust_spec(row);
+  this->adjust_value_ = clamp_setting(spec, this->adjust_value_ + delta_steps * spec.step);
+  this->adjust_screen_.set_value(this->adjust_value_);
+  // Live preview, undone on cancel (design: never change a value live without a way to cancel).
+  if (row == SettingsRow::LUMINOSITY)
+    this->apply_luminosity_(this->adjust_value_);
+}
+
+void DialUi::open_adjust_(SettingsRow row) {
+  this->adjust_value_ = row == SettingsRow::LUMINOSITY ? this->luminosity_ : this->volume_;
+  this->show_(Page{PageKind::ADJUST, 0, static_cast<size_t>(row)}, Slide::UP);
+}
+
+void DialUi::save_settings_() {
+  SettingsRow row = static_cast<SettingsRow>(this->page_.index);
+  if (row == SettingsRow::LUMINOSITY)
+    this->luminosity_ = this->adjust_value_;
+  else
+    this->volume_ = this->adjust_value_;
+  SettingsPrefs p{static_cast<uint8_t>(this->luminosity_), static_cast<uint8_t>(this->volume_)};
+  this->pref_.save(&p);
+  this->settings_screen_.set_values(this->luminosity_, this->volume_);
+  ESP_LOGI(TAG, "Saved: luminosity %d %%, buzzer volume %d %%", this->luminosity_, this->volume_);
+  this->show_(Page{PageKind::SETTINGS, 0, 0}, Slide::DOWN);
+}
+
+void DialUi::activate_row_(SettingsRow row) {
+  switch (row) {
+    case SettingsRow::LUMINOSITY:
+    case SettingsRow::BUZZER:
+      this->open_adjust_(row);
+      break;
+    case SettingsRow::SCREEN_OFF:
+      this->nav_(NavAction::BACK);  // back to the page you left, then dark
+      this->screen_off_();
+      break;
+    case SettingsRow::POWER_OFF:
+      this->nav_(NavAction::BACK);
+      if (this->power_hold_ == nullptr) {
+        ESP_LOGW(TAG, "Power off: no power_hold switch configured");
+        break;
+      }
+      // HOLD low cuts power on battery. On USB the device keeps running: fall back to screen off,
+      // and HOLD goes high again on wake, so unplugging later does not cut power by surprise.
+      ESP_LOGI(TAG, "Power off (HOLD low)");
+      this->hold_released_ = true;
+      this->power_hold_->turn_off();
+      this->set_timeout("power_off", POWER_OFF_GRACE_MS, [this]() { this->screen_off_(); });
+      break;
+    case SettingsRow::EXIT:
+      this->nav_(NavAction::BACK);
+      break;
+  }
+}
+
+void DialUi::apply_luminosity_(int percent) {
+  if (this->backlight_ == nullptr)
+    return;
+  auto call = this->backlight_->make_call();
+  call.set_state(true);
+  call.set_brightness(static_cast<float>(percent) / 100.0f);
+  call.set_transition_length(0);
+  call.perform();
+}
+
+void DialUi::screen_off_() {
+  this->screen_off_state_ = true;
+  if (this->backlight_ != nullptr) {
+    auto call = this->backlight_->make_call();
+    call.set_state(false);
+    call.set_transition_length(0);
+    call.perform();
+  }
+}
+
+void DialUi::wake_() {
+  this->screen_off_state_ = false;
+  this->cancel_timeout("power_off");
+  if (this->hold_released_ && this->power_hold_ != nullptr) {
+    this->power_hold_->turn_on();
+    this->hold_released_ = false;
+  }
+  this->apply_luminosity_(this->luminosity_);
+}
+
+void DialUi::tick_() {
+  if (this->buzzer_ == nullptr)
+    return;
+  // On the buzzer's Adjust page the tick previews the value being edited.
+  int vol = (this->page_.kind == PageKind::ADJUST &&
+             static_cast<SettingsRow>(this->page_.index) == SettingsRow::BUZZER)
+                ? this->adjust_value_
+                : this->volume_;
+  if (vol <= 0)
+    return;
+  this->buzzer_->set_level(TICK_MAX_LEVEL * static_cast<float>(vol) / 100.0f);
+  this->set_timeout("tick", TICK_MS, [this]() { this->buzzer_->set_level(0.0f); });
 }
 
 void DialUi::cancel_hold_() {

@@ -54,6 +54,12 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 - **Screen off** turns the backlight off; any input wakes it.
 - **Power off** drives HOLD low. This cuts power on battery only; on USB the device stays powered.
 - **Exit** closes Settings and returns to the page you left, same as a long press or swipe down.
+- **Decided 2026-11-15 (M7):**
+  - Luminosity 10 to 100 % in steps of 5, default 100 %. Buzzer volume 0 to 100 % in steps of 10, default 50 %. Both are saved on the device (ESPHome preferences) and survive a reboot. Luminosity previews live on the Adjust page; cancel restores it.
+  - The buzzer plays a short tick on each encoder detent and press (not on touch), at the set volume; 0 % is silent. On the buzzer's Adjust page the tick previews the value being set.
+  - Touch on the list: a tap on the focused row opens it; a tap on a neighbouring row scrolls it into focus (swipe up closes Settings, so it cannot scroll the list). On Adjust, dragging the ring changes the value; OK or a press saves; long press or swipe down cancels.
+  - Settings opens on its first row. Screen off and Power off first return to the page you left.
+  - Power off: if the device is still running 1 s after HOLD goes low (on USB), the screen turns off instead, and HOLD goes high again on the next input, so unplugging later does not cut power by surprise.
 
 ## Behaviour
 
