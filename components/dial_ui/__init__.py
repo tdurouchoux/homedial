@@ -42,8 +42,7 @@ Thresholds = dial_ui_ns.struct("Thresholds")
 METRICS = {
     "temperature": Metric.TEMPERATURE,
     "humidity": Metric.HUMIDITY,
-    "co2": Metric.CO2,
-    "pm25": Metric.PM25,
+    "air_quality": Metric.AIR_QUALITY,
 }
 METRIC_ORDER = list(METRICS)
 
@@ -52,8 +51,8 @@ THRESHOLD_KEYS = (CONF_MIN, CONF_MAX, CONF_WARN_LOW, CONF_ALERT_LOW, CONF_WARN_H
 DEFAULT_THRESHOLDS = {
     "temperature": {CONF_MIN: 10, CONF_MAX: 40, CONF_WARN_LOW: 18, CONF_ALERT_LOW: 16, CONF_WARN_HIGH: 26, CONF_ALERT_HIGH: 30},
     "humidity": {CONF_MIN: 0, CONF_MAX: 100, CONF_WARN_LOW: 40, CONF_ALERT_LOW: 30, CONF_WARN_HIGH: 60, CONF_ALERT_HIGH: 70},
-    "co2": {CONF_MIN: 400, CONF_MAX: 2000, CONF_WARN_LOW: None, CONF_ALERT_LOW: None, CONF_WARN_HIGH: 1000, CONF_ALERT_HIGH: 1500},
-    "pm25": {CONF_MIN: 0, CONF_MAX: 75, CONF_WARN_LOW: None, CONF_ALERT_LOW: None, CONF_WARN_HIGH: 15, CONF_ALERT_HIGH: 35},
+    # BME688 BSEC IAQ index: OK up to 100, WARN 101 to 200, ALERT above 200.
+    "air_quality": {CONF_MIN: 0, CONF_MAX: 500, CONF_WARN_LOW: None, CONF_ALERT_LOW: None, CONF_WARN_HIGH: 101, CONF_ALERT_HIGH: 201},
 }
 
 ROOM_NAME_MAX = 12
@@ -96,7 +95,7 @@ ROOM_SCHEMA = cv.All(
         {
             cv.Required(CONF_ID): cv.string_strict,
             cv.Required(CONF_NAME): cv.All(cv.string_strict, cv.Length(min=1)),
-            cv.Required(CONF_METRICS): cv.All(cv.ensure_list(READING_SCHEMA), cv.Length(min=1, max=4)),
+            cv.Required(CONF_METRICS): cv.All(cv.ensure_list(READING_SCHEMA), cv.Length(min=1, max=3)),
         }
     ),
     _validate_room,

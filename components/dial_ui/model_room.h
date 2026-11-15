@@ -19,7 +19,7 @@ struct Reading {
 struct Room {
   std::string id;    // YAML id, used by set_reading("<room>", "<metric>", x)
   std::string name;  // display name, <= 12 characters (longer is cut with an ellipsis)
-  std::vector<Reading> readings;  // 1..4, in Metric order
+  std::vector<Reading> readings;  // 1..3, in Metric order
 
   int index_of(Metric m) const {
     for (size_t i = 0; i < this->readings.size(); i++)
@@ -29,9 +29,9 @@ struct Room {
   }
 };
 
-// "temperature" | "humidity" | "co2" | "pm25" -> Metric; false if unknown.
+// "temperature" | "humidity" | "air_quality" -> Metric; false if unknown.
 inline bool parse_metric(const char *s, Metric *out) {
-  static const char *const NAMES[METRIC_COUNT] = {"temperature", "humidity", "co2", "pm25"};
+  static const char *const NAMES[METRIC_COUNT] = {"temperature", "humidity", "air_quality"};
   for (size_t i = 0; i < METRIC_COUNT; i++) {
     if (std::string(s) == NAMES[i]) {
       *out = static_cast<Metric>(i);

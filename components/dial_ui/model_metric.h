@@ -9,9 +9,10 @@
 
 namespace esphome::dial_ui {
 
-// Fixed page order on a room (design ScreenSensor): Temperature, Humidity, CO2, PM2.5.
-enum class Metric : uint8_t { TEMPERATURE = 0, HUMIDITY = 1, CO2 = 2, PM25 = 3 };
-constexpr size_t METRIC_COUNT = 4;
+// Fixed page order on a room: Temperature, Humidity, Air quality (spec.md; the design's
+// CO2 and PM2.5 are replaced by the BME688 BSEC IAQ index, 0 to 500).
+enum class Metric : uint8_t { TEMPERATURE = 0, HUMIDITY = 1, AIR_QUALITY = 2 };
+constexpr size_t METRIC_COUNT = 3;
 
 enum class Status : uint8_t { OK, WARN, ALERT, OFFLINE };
 
@@ -26,8 +27,7 @@ inline const MetricInfo &metric_info(Metric m) {
   static const MetricInfo INFO[METRIC_COUNT] = {
       {"Temperature", "Temp \xC2\xB0" "C", "\xC2\xB0" "C", 1},
       {"Humidity", "Hum %", "%", 0},
-      {"CO2", "CO2 ppm", "ppm", 0},
-      {"PM2.5", "PM2.5", "ug/m3", 0},
+      {"Air quality", "Air IAQ", "IAQ", 0},
   };
   return INFO[static_cast<size_t>(m)];
 }
@@ -43,6 +43,16 @@ struct Thresholds {
   float alert_high;
 };
 
+// Rounds to the metric's displayed decimals, so the status always matches the number shown
+// (IAQ 100.6 is shown "101" and is WARN with warn_high 101).
+inline float display_round(float value, Metric m) {
+  if (std::isnan(value))
+    return value;
+  float scale = metric_info(m).decimals == 1 ? 10.0f : 1.0f;
+  return std::round(value * scale) / scale;
+}
+
+// `value` should already be display_round()ed.
 inline Status compute_status(float value, const Thresholds &t, bool online) {
   if (!online || std::isnan(value))
     return Status::OFFLINE;

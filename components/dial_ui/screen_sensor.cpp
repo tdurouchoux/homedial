@@ -40,7 +40,7 @@ void ScreenSensor::update(const Room &room, bool online, bool animate) {
   const Reading &r = room.readings[this->index_];
   char buf[16];
   format_value(buf, sizeof(buf), r.value, r.metric, online);
-  Status st = compute_status(r.value, r.thresholds, online);
+  Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
   lv_obj_set_style_text_font(this->value_,
                              strlen(buf) > VALUE_XL_MAX_CHARS ? DIALED_FONT_VALUE_L : DIALED_FONT_VALUE_XL,
                              LV_PART_MAIN);

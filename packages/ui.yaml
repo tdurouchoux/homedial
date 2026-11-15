@@ -13,3 +13,6 @@ dial_ui:
         - metric: humidity
           sensor: living_room_humidity
           history: true
+        - metric: air_quality
+          sensor: living_room_iaq
+          history: true

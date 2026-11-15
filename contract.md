@@ -16,7 +16,7 @@ Verified against **ESPHome 2026.10.2** (bundles **LVGL 9.5.0**, `esphome/compone
 | Key | Values | Where defined |
 | --- | --- | --- |
 | `room` | user ids (`living`, `bedroom`, ...), order = carousel order | `dial_ui.rooms[]` |
-| `metric` | `temperature`, `humidity`, `co2`, `pm25` (room metrics, fixed page order); `power`; `outdoor_temperature` | C++ enum, closed set |
+| `metric` | `temperature`, `humidity`, `air_quality` (BSEC IAQ; room metrics, fixed page order); `power`; `outdoor_temperature` | C++ enum, closed set |
 | `series` | `(room, metric)` or a global metric (`power`) | implied by the config |
 
 Room display name (≤ 12 chars) and optional icon id live in the config, so every screen reads them from one table (design `lvgl.md` "Rooms and sensors").

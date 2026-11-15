@@ -6,10 +6,10 @@ Product decisions for the Dial UI. Look and feel, components and the input vocab
 
 | Level | Page | Design component | Notes |
 | --- | --- | --- | --- |
-| 0 | Room summary (one per room) | ScreenRoom | 2 to 4 readings |
+| 0 | Room summary (one per room) | ScreenRoom | 1 to 3 readings |
 | 0 | Weather now | ScreenWeather | rain arc = next 60 min |
 | 0 | Electricity | ScreenPower | live power, no children |
-| 1 | Sensor (one per metric of a room) | ScreenSensor | Temperature, Humidity, and CO2 / PM2.5 only if the room has the sensor |
+| 1 | Sensor (one per metric of a room) | ScreenSensor | Temperature, Humidity, Air quality, each only if the room has the sensor |
 | 2 | History (one per metric of a room) | ScreenHistory | scrub |
 | 2 | Hourly forecast | ScreenForecast (hourly strip) | opened from Weather now |
 | S | Settings list | ListMenu | not in the carousel |
@@ -78,11 +78,16 @@ See `contract.md` for the ESPHome <-> UI contract.
   | --- | --- | --- | --- |
   | Temperature (°C) | 10 to 40 | below 18, or from 26 | below 16, or from 30 |
   | Humidity (%) | 0 to 100 | below 40, or above 60 | below 30, or above 70 |
-  | CO2 (ppm) | 400 to 2000 | from 1000 | from 1500 |
-  | PM2.5 (ug/m3) | 0 to 75 | from 15 | from 35 |
+  | Air quality (BSEC IAQ) | 0 to 500 | 101 to 200 | above 200 |
 
   The cold-side temperature limits (18 / 16) were proposed and not contested; adjust them in YAML if needed.
 - **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
+
+## Room metrics
+
+Decided 2026-11-15: the rooms' sensors are BME688s, so the metrics are **Temperature, Humidity and Air quality** (the Bosch BSEC IAQ index, 0 to 500, labelled "Air quality" / unit "IAQ" on the Sensor page and "Air IAQ" on the Room page). This differs from `design/`, which shows CO2 and PM2.5; there is no CO2 or PM2.5 sensor. A room therefore has 1 to 3 readings, and the Room page uses the design's 2- and 3-reading layouts (1 reading is centred). The status is computed on the displayed, rounded value.
+
+IAQ thresholds (OK up to 100, WARN 101 to 200, ALERT above 200) follow the band edges of Bosch's IAQ classification as listed in the ESPHome BSEC2 docs (0–50 excellent, 51–100 good, 101–150 lightly polluted, 151–200 moderately polluted, 201+ heavily polluted). The authoritative table is Table 6 ("IAQ classification and color-coding") in the Bosch BME688 datasheet; it has not been checked here yet. The IAQ index is unreliable until BSEC reports its accuracy as calibrated, which the UI does not show yet.
 
 ## Weather
 

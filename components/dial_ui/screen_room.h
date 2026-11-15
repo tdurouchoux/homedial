@@ -1,5 +1,5 @@
 #pragma once
-// Room summary page (design/components/ScreenRoom): room name, 1-4 readings, page dots.
+// Room summary page (design/components/ScreenRoom): room name, 1-3 readings, page dots.
 
 #include "model_room.h"
 #include "widget_common.h"

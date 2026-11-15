@@ -20,7 +20,7 @@ static int failures = 0;
 
 // spec.md defaults
 static const Thresholds TEMP{10, 40, 18, 16, 26, 30};
-static const Thresholds CO2{400, 2000, NAN, NAN, 1000, 1500};
+static const Thresholds IAQ{0, 500, NAN, NAN, 101, 201};
 
 static void test_status() {
   CHECK(compute_status(21.0f, TEMP, true) == Status::OK);
@@ -32,9 +32,17 @@ static void test_status() {
   CHECK(compute_status(30.0f, TEMP, true) == Status::ALERT);   // "alert from 30"
   CHECK(compute_status(NAN, TEMP, true) == Status::OFFLINE);
   CHECK(compute_status(21.0f, TEMP, false) == Status::OFFLINE);
-  CHECK(compute_status(300.0f, CO2, true) == Status::OK);      // no low limits
-  CHECK(compute_status(1000.0f, CO2, true) == Status::WARN);
-  CHECK(compute_status(1500.0f, CO2, true) == Status::ALERT);
+  CHECK(compute_status(0.0f, IAQ, true) == Status::OK);        // no low limits
+  CHECK(compute_status(100.0f, IAQ, true) == Status::OK);      // OK up to 100
+  CHECK(compute_status(101.0f, IAQ, true) == Status::WARN);
+  CHECK(compute_status(200.0f, IAQ, true) == Status::WARN);
+  CHECK(compute_status(201.0f, IAQ, true) == Status::ALERT);   // ALERT above 200
+  // Status follows the displayed (rounded) value.
+  CHECK(compute_status(display_round(100.4f, Metric::AIR_QUALITY), IAQ, true) == Status::OK);
+  CHECK(compute_status(display_round(100.6f, Metric::AIR_QUALITY), IAQ, true) == Status::WARN);
+  CHECK(compute_status(display_round(25.96f, Metric::TEMPERATURE), TEMP, true) == Status::WARN);  // shown 26.0
+  CHECK(compute_status(display_round(25.94f, Metric::TEMPERATURE), TEMP, true) == Status::OK);    // shown 25.9
+  CHECK(std::isnan(display_round(NAN, Metric::HUMIDITY)));
 }
 
 static void test_ring() {
@@ -62,19 +70,19 @@ static void test_format() {
   CHECK(fmt_is(-3.25f, Metric::TEMPERATURE, true, "-3.2"));
   CHECK(fmt_is(55.6f, Metric::HUMIDITY, true, "56"));
   CHECK(fmt_is(-0.3f, Metric::HUMIDITY, true, "0"));
-  CHECK(fmt_is(1480.0f, Metric::CO2, true, "1480"));
-  CHECK(fmt_is(NAN, Metric::PM25, true, "--"));
-  CHECK(fmt_is(12.0f, Metric::PM25, false, "--"));
+  CHECK(fmt_is(87.4f, Metric::AIR_QUALITY, true, "87"));
+  CHECK(fmt_is(NAN, Metric::AIR_QUALITY, true, "--"));
+  CHECK(fmt_is(12.0f, Metric::AIR_QUALITY, false, "--"));
 }
 
 static void test_room() {
   Metric m;
-  CHECK(parse_metric("pm25", &m) && m == Metric::PM25);
-  CHECK(!parse_metric("pm2.5", &m));
+  CHECK(parse_metric("air_quality", &m) && m == Metric::AIR_QUALITY);
+  CHECK(!parse_metric("co2", &m));
   Room r;
   r.readings.push_back(Reading{Metric::TEMPERATURE, TEMP});
-  r.readings.push_back(Reading{Metric::CO2, CO2});
-  CHECK(r.index_of(Metric::CO2) == 1);
+  r.readings.push_back(Reading{Metric::AIR_QUALITY, IAQ});
+  CHECK(r.index_of(Metric::AIR_QUALITY) == 1);
   CHECK(r.index_of(Metric::HUMIDITY) == -1);
   CHECK(std::isnan(r.readings[0].value) && r.readings[0].dirty);
 }

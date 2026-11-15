@@ -12,7 +12,7 @@ struct SlotPos {
   int32_t top;
 };
 
-// Layout by reading count (design ScreenRoom). Tops are the label line's top.
+// Layout by reading count (design ScreenRoom; at most 3 readings now). Tops are the label line's top.
 static void layout(size_t count, SlotPos *pos, const lv_font_t **font) {
   switch (count) {
     case 1:
@@ -24,17 +24,10 @@ static void layout(size_t count, SlotPos *pos, const lv_font_t **font) {
       pos[1] = {170, 89};
       *font = DIALED_FONT_VALUE_L;
       break;
-    case 3:
+    default:  // 3
       pos[0] = {120, 60};
       pos[1] = {78, 126};
       pos[2] = {162, 126};
-      *font = DIALED_FONT_VALUE_M;
-      break;
-    default:
-      pos[0] = {78, 60};
-      pos[1] = {162, 60};
-      pos[2] = {78, 126};
-      pos[3] = {162, 126};
       *font = DIALED_FONT_VALUE_M;
       break;
   }
@@ -78,7 +71,7 @@ void ScreenRoom::update_reading(const Room &room, size_t index, bool online) {
   const Reading &r = room.readings[index];
   char buf[16];
   format_value(buf, sizeof(buf), r.value, r.metric, online);
-  Status st = compute_status(r.value, r.thresholds, online);
+  Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
   lv_label_set_text(this->slots_[index].value, buf);
   lv_obj_set_style_text_color(this->slots_[index].value, value_color(st), LV_PART_MAIN);
 }

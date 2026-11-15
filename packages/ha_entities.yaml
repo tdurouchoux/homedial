@@ -6,3 +6,6 @@ sensor:
   - platform: homeassistant
     id: living_room_humidity
     entity_id: sensor.living_room_humidity
+  - platform: homeassistant
+    id: living_room_iaq
+    entity_id: sensor.living_room_iaq   # BME688 BSEC IAQ index (0 to 500)
