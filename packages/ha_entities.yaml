@@ -1,0 +1,8 @@
+# Home Assistant entities read by the UI. PLACEHOLDER ids: replace with your own entities.
+sensor:
+  - platform: homeassistant
+    id: living_room_temperature
+    entity_id: sensor.living_room_temperature
+  - platform: homeassistant
+    id: living_room_humidity
+    entity_id: sensor.living_room_humidity

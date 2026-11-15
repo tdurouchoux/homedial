@@ -42,6 +42,8 @@ dial_ui:
         - metric: temperature
           sensor: living_temp    # cv.use_id(sensor.Sensor)
           history: true
+          thresholds:            # optional, overrides the defaults for this room
+            warn_high: 25
         - metric: humidity
           sensor: living_hum
 ```
@@ -53,8 +55,8 @@ Decided by the user (2026-11-15). The public setter below stays as an escape hat
 ### 3.2 Public C++ surface (called by the component itself or YAML lambdas)
 
 ```cpp
-// Live values. NaN = missing.
-void set_reading(Room room, Metric metric, float value);
+// Live values. NaN = missing. Room id and metric name as in YAML.
+void set_reading(const char *room_id, const char *metric, float value);
 void set_power(float watts);
 // Weather now: wired by id like the room sensors (§6); setters are the escape hatch.
 void set_weather_now(float temp, const std::string &ha_condition);

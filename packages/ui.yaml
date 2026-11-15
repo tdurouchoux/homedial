@@ -1,3 +1,15 @@
 # dial_ui external component (components/dial_ui). Data wiring per contract.md.
+# Thresholds default to spec.md "Data decisions"; override them per metric here,
+# or per room under a metric's `thresholds:`.
 dial_ui:
   id: ui
+  rooms:
+    - id: living
+      name: Living room
+      metrics:
+        - metric: temperature
+          sensor: living_room_temperature
+          history: true
+        - metric: humidity
+          sensor: living_room_humidity
+          history: true

@@ -58,6 +58,13 @@ touchscreen:
     i2c_id: internal_i2c
     address: 0x38
     display: round_display
+    # M1 input check (sensor/touch state is only logged at VERBOSE). Remove once input is confirmed.
+    on_touch:
+      - logger.log:
+          format: "Touch at x=%d y=%d"
+          args: [touch.x, touch.y]
+    on_release:
+      - logger.log: "Touch released"
 
 sensor:
   - platform: rotary_encoder
@@ -68,6 +75,10 @@ sensor:
     pin_b:
       number: GPIO41
       mode: INPUT_PULLUP
+    on_value:  # M1 input check, remove once confirmed
+      - logger.log:
+          format: "Encoder position %d"
+          args: [(int) x]
 
 binary_sensor:
   # Encoder push: the only physical button. Fed to LVGL as the encoder's enter key.
@@ -77,6 +88,10 @@ binary_sensor:
       number: GPIO42
       inverted: true
       mode: INPUT_PULLUP
+    on_press:  # M1 input check, remove once confirmed
+      - logger.log: "Encoder button pressed"
+    on_release:
+      - logger.log: "Encoder button released"
 
 time:
   - platform: homeassistant

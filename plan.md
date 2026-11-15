@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1 written, validated and compiled in the container; awaiting flash and on-device check by the user.
+Status: M1 confirmed on the device by the user. M2 written, validated, unit-tested and compiled in the container (flash 73.5 % of the app partition, RAM 31 %); awaiting on-device check.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -40,6 +40,7 @@ tests/host/                   # g++ unit tests for model/
 
 **M2 – Data model + Room and Sensor pages (one room).** Schema: `rooms[] {id, name, icon, metrics[] {metric, sensor: use_id, history}}`, `thresholds` per metric (+ per-room override), `contract_limit_w`. C++: subscribe via `add_on_state_callback`, status from thresholds, NaN → `--`/OFFLINE, API-connected polling (`is_connected_with_state_subscription()`) → stale. Widgets: ArcGauge, StatusLabel, LocationLabel, PageDots. Screens: ScreenRoom (2/3/4 layouts), ScreenSensor. Redraw dirty widgets ≤ 1 Hz.
 *Host tests:* status thresholds, NaN, staleness.
+*Done:* `model_metric.h`, `model_room.h`, `widget_*`, `screen_room.*`, `screen_sensor.*`; navigation subset ahead of M3 so the pages can be reached: turn = sibling room / metric, press on Room = first metric, tap on a reading = that metric, long press on Sensor = back. The encoder reaches pages through one focus object per screen in edit mode (`LV_EVENT_KEY`, `SHORT_CLICKED`, `LONG_PRESSED`; `CLICKED` also fires after a long press, so it is not used).
 
 **M3 – Navigation.** Page table `{kind, room, metric}`; carousel (rooms → weather → power, no wrap); deeper/back; Room tap on a reading; 200 ms slide; Settings entry (long press, swipe down, 600 ms touch hold) as a stub screen.
 

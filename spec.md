@@ -72,7 +72,16 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 ## Data decisions
 
 See `contract.md` for the ESPHome <-> UI contract.
-- **Thresholds and the power contract limit** are set in the `dial_ui:` YAML block (per-metric defaults, overridable per room).
+- **Thresholds and the power contract limit** are set in the `dial_ui:` YAML block (per-metric defaults, overridable globally per metric or per room). Defaults (decided 2026-11-15):
+
+  | Metric | Ring range | WARN | ALERT |
+  | --- | --- | --- | --- |
+  | Temperature (°C) | 10 to 40 | below 18, or from 26 | below 16, or from 30 |
+  | Humidity (%) | 0 to 100 | below 40, or above 60 | below 30, or above 70 |
+  | CO2 (ppm) | 400 to 2000 | from 1000 | from 1500 |
+  | PM2.5 (ug/m3) | 0 to 75 | from 15 | from 35 |
+
+  The cold-side temperature limits (18 / 16) were proposed and not contested; adjust them in YAML if needed.
 - **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
 
 ## Weather
@@ -83,7 +92,7 @@ See `contract.md` for the ESPHome <-> UI contract.
 
 ## Open questions
 
-- Home Assistant entities per room and metric, thresholds per metric, contract limit for the power ring.
+- Home Assistant entities per room and metric (placeholders in `packages/ha_entities.yaml`), contract limit for the power ring.
 - Wording of the rain line under the arc (e.g. "Rain now", "Rain in 15 min").
 - Where the weather city is configured.
 - Language (English with stock ASCII fonts, or French with Latin-1 custom fonts) and theme (dark only, or dark and day).

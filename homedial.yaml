@@ -7,6 +7,7 @@ esphome:
     # LVGL features used only from dial_ui C++ (ESPHome sets unused LV_USE_* to 0, see contract.md §8).
     - -DLV_USE_ARC=1
     - -DLV_USE_LABEL=1
+    - -DLV_USE_FLEX=1
     # Stock Montserrat sizes used by the Dialed design (English UI, ASCII + degree sign + LV_SYMBOL_*).
     # Size 14 is already enabled by ESPHome as the LVGL default font.
     - -DLV_FONT_MONTSERRAT_12=1
@@ -48,4 +49,5 @@ external_components:
 
 packages:
   hardware: !include packages/hardware.yaml
+  ha_entities: !include packages/ha_entities.yaml
   ui: !include packages/ui.yaml
