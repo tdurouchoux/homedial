@@ -90,12 +90,12 @@ Decided by the user (2026-11-15): **device-only, RAM only, hourly over 24 h.** N
 
 ### 5.1 Model
 
-Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, weighted_sum, credited_seconds}` (mean = sum / seconds), aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
+Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, mean, count}`, aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
 
-- **Event-driven only, no periodic sampling.** The bucket mean is time-weighted: when a new value arrives, the previous value is credited for the time it was held (split across the hour boundary if needed). Work happens only on a value change and once per hour at rollover; nothing runs on a timer in between.
-- On the hour rollover the open bucket is closed by crediting the last known value up to the boundary, then the ring shifts. A stable sensor that sent nothing all hour therefore still gets its (unchanged) value, at no extra cost.
-- Time while the value is unknown (`NaN`, HA disconnected, device off, clock not yet valid) is not credited. An hour with no credited time is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
+- Each live value (not `NaN`) updates the open bucket's running mean.
+- On the hour rollover the open bucket closes and the ring shifts. An hour with no value (device off, HA disconnected, sensor `NaN` all hour) is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
 - Wall clock: `time: - platform: homeassistant` (`homeassistant/time/`). Until the time is valid nothing is recorded. **[decide later]** the PCF8563 RTC could provide time before HA connects (CLAUDE.md open question on RTC); not needed for this contract.
+- Because HA only sends on change, a stable sensor yields few callbacks. The component therefore also samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean. This reads the value already in memory; it is not a request to HA.
 
 ### 5.2 Not used: backfill from HA
 

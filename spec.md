@@ -72,7 +72,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 
 See `contract.md` for the ESPHome <-> UI contract.
 - **Thresholds and the power contract limit** are set in the `dial_ui:` YAML block (per-metric defaults, overridable per room).
-- **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. It is event-driven: work happens only when a value changes and once per hour, with no periodic sampling. No history is fetched from Home Assistant.
+- **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
 
 ## Open questions
 
