@@ -11,8 +11,8 @@ enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, BUZZER_PITCH, SCREEN_OFF,
 constexpr size_t SETTINGS_ROWS = 6;
 
 inline const char *settings_label(SettingsRow r) {
-  static const char *const L[SETTINGS_ROWS] = {"Luminosity", "Buzzer vol.", "Buzzer pitch", "Screen off", "Power off",
-                                                "Exit"};
+  // "Pitch", not "Buzzer pitch": with its value ("6000Hz") it must fit the 144 px inside a row (user).
+  static const char *const L[SETTINGS_ROWS] = {"Luminosity", "Buzzer vol.", "Pitch", "Screen off", "Power off", "Exit"};
   return L[static_cast<size_t>(r)];
 }
 

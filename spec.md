@@ -49,8 +49,8 @@ Settings (above the carousel):
 
 ## Settings list
 
-Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Buzzer pitch, Screen off, Power off, Exit.
-- **Luminosity**, **Buzzer vol.** (buzzer volume) and **Buzzer pitch** open an Adjust page.
+Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Pitch, Screen off, Power off, Exit.
+- **Luminosity**, **Buzzer vol.** (buzzer volume) and **Pitch** (buzzer pitch) open an Adjust page. A row's label and value must fit the 144 px inside the row (measured with the Montserrat 16 / 14 glyph widths): "Buzzer pitch 6000Hz" did not, so the row is "Pitch".
 - **Screen off** turns the backlight off; any input wakes it.
 - **Power off** drives HOLD low. This cuts power on battery only; on USB the device stays powered.
 - **Exit** closes Settings and returns to the page you left, same as a long press or swipe down.
