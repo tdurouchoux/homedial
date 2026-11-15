@@ -10,7 +10,6 @@ namespace esphome::dial_ui {
 
 static const char *const TAG = "dial_ui";
 static constexpr uint32_t TICK_MS = 6;              // encoder tick length
-static constexpr float TICK_MAX_LEVEL = 0.5f;       // 50 % duty is the loudest a square wave gets
 static constexpr uint32_t POWER_OFF_GRACE_MS = 1000;  // still running after this: on USB
 struct SettingsPrefs {
   uint8_t luminosity;
@@ -913,7 +912,7 @@ void DialUi::tick_() {
                 : this->volume_;
   if (vol <= 0)
     return;
-  this->buzzer_->set_level(TICK_MAX_LEVEL * static_cast<float>(vol) / 100.0f);
+  this->buzzer_->set_level(buzzer_level(vol));
   this->set_timeout("tick", TICK_MS, [this]() { this->buzzer_->set_level(0.0f); });
 }
 

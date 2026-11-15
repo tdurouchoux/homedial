@@ -61,4 +61,14 @@ class DetentAccel {
   int run_{0};
 };
 
+// Buzzer volume (0..100 %) -> PWM duty (0..0.5). A passive buzzer gets only slightly quieter as the
+// duty drops from 50 % to ~10 %; the audible change happens at very low duty. A cubic curve spreads
+// the steps where loudness actually changes (a linear map made most steps sound the same; user).
+inline float buzzer_level(int volume_percent) {
+  if (volume_percent <= 0)
+    return 0.0f;
+  float v = volume_percent > 100 ? 1.0f : static_cast<float>(volume_percent) / 100.0f;
+  return 0.5f * v * v * v;
+}
+
 }  // namespace esphome::dial_ui

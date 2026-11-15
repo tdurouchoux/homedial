@@ -33,6 +33,14 @@ int main() {
   CHECK(a.steps(1250, -1) == 1);  // direction change resets
   CHECK(a.steps(2000, -1) == 1);  // slow resets
 
+  // Volume curve: silent at 0, 50 % duty (loudest) at 100, steep at the low end.
+  CHECK(buzzer_level(0) == 0.0f && buzzer_level(-5) == 0.0f);
+  CHECK(buzzer_level(100) == 0.5f && buzzer_level(150) == 0.5f);
+  CHECK(buzzer_level(50) > 0.06f && buzzer_level(50) < 0.065f);
+  CHECK(buzzer_level(10) > 0.0f && buzzer_level(10) < 0.001f);
+  for (int v = 10; v <= 100; v += 10)
+    CHECK(buzzer_level(v) > buzzer_level(v - 10));  // every step is a change
+
   if (failures == 0)
     std::printf("All settings tests passed\n");
   return failures == 0 ? 0 : 1;
