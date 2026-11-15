@@ -38,6 +38,7 @@ i2c:
   - id: internal_i2c
     sda: GPIO11
     scl: GPIO12
+    frequency: 400kHz  # as in M5Stack's Dial example (ESPHome default is 50kHz)
 
 display:
   - platform: ili9xxx
