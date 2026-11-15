@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1 written and validated with `esphome config`; awaiting build and flash by the user.
+Status: M1 written, validated and compiled in the container; awaiting flash and on-device check by the user.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -65,6 +65,6 @@ Rain-line wording; weather city on the Forecast title; icon SVG sources for the 
 
 ## Verification
 - Every step: `uvx esphome config homedial.yaml` with a throwaway `secrets.yaml` (not committed).
-- `uvx esphome compile` in the container runs codegen (checks generated `lv_conf.h`, CMake flags, copied files) but stops before compiling: `dl.espressif.com` is blocked by this session's network policy. C++ compile errors therefore come from the user's build.
+- `uvx esphome compile homedial.yaml` in the container (cloud environment `homedial`, which allows the Espressif and GitHub download hosts). M1 compiled cleanly on 2026-11-15: no `dial_ui` warnings, RAM 30.9 %, flash 61.0 % of the app partition.
 - `tests/host`: `g++ -std=c++17` unit tests for the `model_*` files, run in the container.
 - User builds/flashes each milestone and reports logs; nothing is claimed working on the device without their confirmation.

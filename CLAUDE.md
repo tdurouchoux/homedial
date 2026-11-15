@@ -38,7 +38,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty `dial_ui` screen) is in place and passes `esphome config`; not yet confirmed on the device.
+- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty `dial_ui` screen) is in place and compiles; not yet confirmed on the device.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Per the user, an earlier prototype compiled and ran with the HA sensor -> display path working. Nothing has been re-verified in this repo yet.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
@@ -57,7 +57,8 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Secrets always via `!secret`; never hardcode passwords or keys; never commit `secrets.yaml`.
 
 ## Workflow
-- Validate: `esphome config homedial.yaml`. Claude has no `esphome` install, so it runs `uvx esphome config homedial.yaml` instead. This needs a throwaway `secrets.yaml` next to the config; never commit it.
+- Validate: `esphome config homedial.yaml`. Claude has no `esphome` install, so it runs `uvx esphome config homedial.yaml` instead. This needs a throwaway `secrets.yaml` next to the config (gitignored; never commit it).
+- Compile: Claude can run `uvx esphome compile homedial.yaml` in a cloud session on the `homedial` environment (allows `dl.espressif.com`, `components.espressif.com`, `components-file.espressif.com` and GitHub). A clean compile is not an on-device check.
 - Building and flashing the hardware is done by the user, who reports compile errors and device logs verbatim. Claude never claims a build, flash or on-device check passed unless the user confirmed it.
 - After each change: validate, then hand over to the user to build and flash. Fix root causes of reported errors; do not guess pins or APIs, check the docs or the installed ESPHome source.
 - Work in small steps (one screen or widget at a time) and keep the config compiling between steps.
