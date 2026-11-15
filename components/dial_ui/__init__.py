@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 
 import esphome.codegen as cg
-from esphome.components import sensor
+from esphome.components import sensor, time
 from esphome.components.lvgl.defines import CONF_LVGL_ID
 from esphome.components.lvgl.lvcode import LvglComponent
 import esphome.config_validation as cv
@@ -28,6 +28,7 @@ CONF_MAX = "max"
 CONF_METRICS = "metrics"
 CONF_THRESHOLDS = "thresholds"
 CONF_HISTORY = "history"
+CONF_TIME_ID = "time_id"
 CONF_WARN_LOW = "warn_low"
 CONF_ALERT_LOW = "alert_low"
 CONF_WARN_HIGH = "warn_high"
@@ -74,7 +75,7 @@ READING_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_METRIC): cv.one_of(*METRICS, lower=True),
         cv.Required(CONF_SENSOR): cv.use_id(sensor.Sensor),
-        # History pages arrive in M4; accepted now so packages/ui.yaml does not change later.
+        # Keep 24 h of hourly means in RAM and give the reading a History page (needs time_id).
         cv.Optional(CONF_HISTORY, default=False): cv.boolean,
         cv.Optional(CONF_THRESHOLDS, default={}): THRESHOLDS_SCHEMA,
     }
@@ -113,10 +114,19 @@ def _validate_rooms(rooms):
     return rooms
 
 
+def _validate_history_needs_time(config):
+    uses_history = any(m[CONF_HISTORY] for r in config[CONF_ROOMS] for m in r[CONF_METRICS])
+    if uses_history and CONF_TIME_ID not in config:
+        raise cv.Invalid("time_id is required when a metric has history: true", [CONF_TIME_ID])
+    return config
+
+
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(DialUi),
         cv.GenerateID(CONF_LVGL_ID): cv.use_id(LvglComponent),
+        # Wall clock for history (hour buckets); e.g. the homeassistant time platform.
+        cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
         # Per-metric overrides of DEFAULT_THRESHOLDS for every room.
         cv.Optional(CONF_THRESHOLDS, default={}): cv.Schema(
             {cv.Optional(m): THRESHOLDS_SCHEMA for m in METRICS}
@@ -124,6 +134,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ROOMS, default=[]): cv.All(cv.ensure_list(ROOM_SCHEMA), _validate_rooms),
     }
 ).extend(cv.COMPONENT_SCHEMA)
+CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time)
 
 
 def _float_expr(value):
@@ -145,6 +156,8 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await cg.register_parented(var, config[CONF_LVGL_ID])
+    if CONF_TIME_ID in config:
+        cg.add(var.set_time(await cg.get_variable(config[CONF_TIME_ID])))
 
     global_overrides = config[CONF_THRESHOLDS]
     for room in config[CONF_ROOMS]:
@@ -158,4 +171,4 @@ async def to_code(config):
                 raise cv.Invalid(f"room '{room[CONF_ID]}' {metric}: max must be greater than min")
             sens = await cg.get_variable(reading[CONF_SENSOR])
             thresholds = cg.StructInitializer(Thresholds, *[(k, _float_expr(t[k])) for k in THRESHOLD_KEYS])
-            cg.add(var.add_reading(METRICS[metric], sens, thresholds))
+            cg.add(var.add_reading(METRICS[metric], sens, thresholds, reading[CONF_HISTORY]))

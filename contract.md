@@ -96,10 +96,10 @@ Decided by the user (2026-11-15): **device-only, RAM only, hourly over 24 h.** N
 
 Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the current hour), each `{start_epoch, mean, count}`, aligned on wall-clock hours. 25 points ≤ the design's 60-point chart limit. RAM ≈ 25 × 12 B per series.
 
-- Each live value (not `NaN`) updates the open bucket's running mean.
+- Only the once-a-minute sample (below) feeds the open bucket's mean; live values update the reading in memory. So every minute weighs the same, and a sensor that changes often does not count more than a stable one (implemented in M4, `model_history.h`).
 - On the hour rollover the open bucket closes and the ring shifts. An hour with no value (device off, HA disconnected, sensor `NaN` all hour) is stored as missing and drawn as `LV_CHART_POINT_NONE`, never interpolated.
 - Wall clock: `time: - platform: homeassistant` (`homeassistant/time/`). Until the time is valid nothing is recorded. **[decide later]** the PCF8563 RTC could provide time before HA connects (CLAUDE.md open question on RTC); not needed for this contract.
-- Because HA only sends on change, a stable sensor yields few callbacks. The component therefore also samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean. This reads the value already in memory; it is not a request to HA.
+- Because HA only sends on change, a stable sensor yields few callbacks. The component therefore samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean. This reads the value already in memory; it is not a request to HA. While HA is disconnected, or the value is `NaN`, no sample is added.
 
 ### 5.2 Not used: backfill from HA
 

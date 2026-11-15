@@ -80,11 +80,18 @@ static void test_room() {
   CHECK(parse_metric("air_quality", &m) && m == Metric::AIR_QUALITY);
   CHECK(!parse_metric("co2", &m));
   Room r;
-  r.readings.push_back(Reading{Metric::TEMPERATURE, TEMP});
-  r.readings.push_back(Reading{Metric::AIR_QUALITY, IAQ});
+  Reading t;
+  t.metric = Metric::TEMPERATURE;
+  t.thresholds = TEMP;
+  Reading q;
+  q.metric = Metric::AIR_QUALITY;
+  q.thresholds = IAQ;
+  r.readings.push_back(t);
+  r.readings.push_back(q);
   CHECK(r.index_of(Metric::AIR_QUALITY) == 1);
   CHECK(r.index_of(Metric::HUMIDITY) == -1);
-  CHECK(std::isnan(r.readings[0].value) && r.readings[0].dirty);
+  CHECK(std::isnan(r.readings[0].value) && r.readings[0].dirty && !r.readings[0].has_history);
+  CHECK(!r.readings[0].history.has_data());
 }
 
 int main() {

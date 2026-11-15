@@ -7,9 +7,11 @@
 #include "esphome/core/helpers.h"
 #include "esphome/components/lvgl/lvgl_esphome.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/time/real_time_clock.h"
 
 #include "model_nav.h"
 #include "model_room.h"
+#include "screen_history.h"
 #include "screen_room.h"
 #include "screen_sensor.h"
 #include "screen_settings.h"
@@ -20,7 +22,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
  public:
   // ---- Codegen (packages/ui.yaml -> __init__.py) ----
   void add_room(const char *id, const char *name);
-  void add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds);  // to the last room
+  void add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds, bool history);  // to the last room
+  void set_time(time::RealTimeClock *time) { this->time_ = time; }
 
   // ---- Escape hatch for YAML lambdas: id(ui).set_reading("living", "temperature", x) ----
   void set_reading(const char *room_id, const char *metric, float value);
@@ -35,6 +38,16 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void set_value_(size_t room, size_t index, float value);
   bool online_() const;
   void refresh_();
+  void sample_history_();
+
+  // History page: scrub with the encoder (press, turn) or touch (hold 250 ms on the chart, drag).
+  bool history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
+  static void chart_event_cb_(lv_event_t *e);
+  void on_chart_event_(lv_event_t *e);
+  static void scrub_hold_cb_(lv_timer_t *t);
+  static void scrub_revert_cb_(lv_timer_t *t);
+  void scrub_to_(int index);
+  void end_scrub_();
 
   // Navigation: every input becomes a NavAction (model_nav.h).
   void nav_(NavAction action);
@@ -56,6 +69,11 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ScreenSensor sensor_screens_[2];
   size_t sensor_active_{0};
   ScreenSettings settings_screen_;
+  ScreenHistory history_screen_;
+  std::vector<uint8_t> history_mask_;  // per room, bit i = reading i has history
+  time::RealTimeClock *time_{nullptr};
+  uint32_t last_sample_ms_{0};
+  bool sampled_once_{false};
 
   Page page_{};
   Page before_settings_{};
@@ -66,6 +84,13 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   lv_timer_t *hold_timer_{nullptr};
   lv_indev_t *hold_indev_{nullptr};
   lv_point_t hold_point_{};
+
+  bool scrub_encoder_{false};  // encoder scrub in progress
+  bool scrub_touch_{false};    // touch scrub in progress (finger down)
+  lv_timer_t *scrub_hold_timer_{nullptr};
+  lv_timer_t *scrub_revert_timer_{nullptr};
+  lv_indev_t *scrub_indev_{nullptr};
+  lv_point_t scrub_point_{};
 };
 
 }  // namespace esphome::dial_ui

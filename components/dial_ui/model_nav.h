@@ -8,12 +8,12 @@
 
 namespace esphome::dial_ui {
 
-enum class PageKind : uint8_t { ROOM, SENSOR, SETTINGS };
+enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, SETTINGS };
 
 struct Page {
   PageKind kind{PageKind::ROOM};
   size_t room{0};   // ROOM / SENSOR: room index; level-0 position for the carousel
-  size_t index{0};  // SENSOR: reading index in the room
+  size_t index{0};  // SENSOR / HISTORY: reading index in the room
   bool operator==(const Page &o) const { return kind == o.kind && room == o.room && index == o.index; }
 };
 
@@ -33,6 +33,8 @@ struct NavResult {
 struct NavShape {
   size_t room_count{0};
   const size_t *readings_per_room{nullptr};
+  // Bit i set: reading i of the room keeps history (YAML `history: true`), so it has a History page.
+  const uint8_t *history_mask{nullptr};
 };
 
 // `before_settings` is where Settings returns to; it is updated when Settings opens.
@@ -64,13 +66,23 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
       } else if (a == NavAction::PREV && cur.index > 0) {
         r.page.index = cur.index - 1;
         r.slide = Slide::RIGHT;
+      } else if (a == NavAction::OPEN && shape.history_mask != nullptr &&
+                 (shape.history_mask[cur.room] >> cur.index) & 1u) {
+        r.page = Page{PageKind::HISTORY, cur.room, cur.index};
+        r.slide = Slide::UP;
       } else if (a == NavAction::BACK) {
         r.page = Page{PageKind::ROOM, cur.room, 0};
         r.slide = Slide::DOWN;
       }
-      // OPEN -> History arrives in M4.
       break;
     }
+    case PageKind::HISTORY:
+      // Level 2 interaction page: turn and swipe act inside it (scrub), never change page.
+      if (a == NavAction::BACK) {
+        r.page = Page{PageKind::SENSOR, cur.room, cur.index};
+        r.slide = Slide::DOWN;
+      }
+      break;
     case PageKind::SETTINGS:
       if (a == NavAction::BACK) {
         r.page = *before_settings;  // returns to the page you left
@@ -90,6 +102,12 @@ enum class Swipe : uint8_t { LEFT, RIGHT, UP, DOWN };
 inline bool swipe_action(PageKind kind, Swipe s, NavAction *out) {
   if (kind == PageKind::SETTINGS) {
     if (s != Swipe::UP)
+      return false;
+    *out = NavAction::BACK;
+    return true;
+  }
+  if (kind == PageKind::HISTORY) {  // only swipe down (back) changes page
+    if (s != Swipe::DOWN)
       return false;
     *out = NavAction::BACK;
     return true;

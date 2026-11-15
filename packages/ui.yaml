@@ -3,6 +3,7 @@
 # or per room under a metric's `thresholds:`.
 dial_ui:
   id: ui
+  time_id: ha_time   # wall clock for history (packages/hardware.yaml)
   rooms:
     - id: living
       name: Living room

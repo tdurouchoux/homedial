@@ -12,6 +12,9 @@ static const char *const TAG = "dial_ui";
 static constexpr uint32_t REFRESH_MS = 1000;      // design: update readings at 1 Hz
 static constexpr uint32_t SETTINGS_HOLD_MS = 600;  // spec: 600 ms touch hold opens Settings
 static constexpr int32_t HOLD_SLOP_PX = 12;        // a hold that moves further is a drag, not a hold
+static constexpr uint32_t SAMPLE_MS = 60000;       // history: one sample a minute (contract.md §5)
+static constexpr uint32_t SCRUB_HOLD_MS = 250;     // design: hold 250 ms on the chart starts a scrub
+static constexpr uint32_t SCRUB_KEEP_MS = 2000;    // design: the readout stays 2 s after release
 // Arrival nudges (spec.md): content arrives moving the way the finger went.
 static constexpr int32_t NUDGE_VALUE_PX = 12;      // Sensor hero value (vertical)
 static constexpr int32_t NUDGE_ROOM_PX = 8;        // Room readings (vertical)
@@ -42,13 +45,14 @@ void DialUi::add_room(const char *id, const char *name) {
   this->rooms_.push_back(std::move(r));
 }
 
-void DialUi::add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds) {
+void DialUi::add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thresholds, bool history) {
   if (this->rooms_.empty())
     return;
   size_t room = this->rooms_.size() - 1;
   Reading r;
   r.metric = metric;
   r.thresholds = thresholds;
+  r.has_history = history;
   this->rooms_[room].readings.push_back(r);
   size_t index = this->rooms_[room].readings.size() - 1;
   if (sensor != nullptr) {
@@ -94,6 +98,11 @@ void DialUi::setup() {
   this->room_screens_.resize(this->rooms_.size());
   for (size_t r = 0; r < this->rooms_.size(); r++) {
     this->readings_per_room_.push_back(this->rooms_[r].readings.size());
+    uint8_t mask = 0;
+    for (size_t i = 0; i < this->rooms_[r].readings.size(); i++)
+      if (this->rooms_[r].readings[i].has_history)
+        mask |= static_cast<uint8_t>(1u << i);
+    this->history_mask_.push_back(mask);
     this->room_screens_[r].create(this->rooms_[r]);
     this->room_screens_[r].set_dots(this->rooms_.size(), r);
     this->attach_events_(this->room_screens_[r].screen());
@@ -104,6 +113,15 @@ void DialUi::setup() {
   }
   this->settings_screen_.create();
   this->attach_events_(this->settings_screen_.screen());
+  this->history_screen_.create();
+  this->attach_events_(this->history_screen_.screen());
+  lv_obj_t *chart = this->history_screen_.chart().obj();
+  for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
+    lv_obj_add_event_cb(chart, &DialUi::chart_event_cb_, c, this);
+  this->scrub_hold_timer_ = lv_timer_create(&DialUi::scrub_hold_cb_, SCRUB_HOLD_MS, this);
+  lv_timer_pause(this->scrub_hold_timer_);
+  this->scrub_revert_timer_ = lv_timer_create(&DialUi::scrub_revert_cb_, SCRUB_KEEP_MS, this);
+  lv_timer_pause(this->scrub_revert_timer_);
 
   this->hold_timer_ = lv_timer_create(&DialUi::hold_timer_cb_, SETTINGS_HOLD_MS, this);
   lv_timer_pause(this->hold_timer_);
@@ -120,6 +138,8 @@ void DialUi::setup() {
 
 void DialUi::loop() {
   uint32_t now = millis();
+  if (!this->sampled_once_ || now - this->last_sample_ms_ >= SAMPLE_MS)
+    this->sample_history_();
   if (now - this->last_refresh_ms_ < REFRESH_MS)
     return;
   this->last_refresh_ms_ = now;
@@ -134,6 +154,31 @@ void DialUi::loop() {
   this->refresh_();
 }
 
+// Once a minute: each history reading's current value (from memory, not a request to HA) goes
+// into its hourly mean; hours also roll over while offline, so gaps show as missing.
+void DialUi::sample_history_() {
+  if (this->time_ == nullptr)
+    return;
+  int64_t epoch = static_cast<int64_t>(this->time_->timestamp_now());
+  if (epoch < HourlyHistory::MIN_VALID_EPOCH)
+    return;  // clock not set yet: nothing is recorded (try again next loop)
+  this->sampled_once_ = true;
+  this->last_sample_ms_ = millis();
+  bool online = this->online_last_;
+  for (auto &room : this->rooms_) {
+    for (auto &r : room.readings) {
+      if (!r.has_history)
+        continue;
+      if (online)
+        r.history.add(epoch, r.value);  // NaN (sensor unavailable) is ignored
+      else
+        r.history.advance(epoch);
+    }
+  }
+  if (this->page_.kind == PageKind::HISTORY)
+    this->history_screen_.update(this->rooms_[this->page_.room], online);
+}
+
 void DialUi::refresh_() {
   bool online = this->online_last_;
   for (size_t ri = 0; ri < this->rooms_.size(); ri++) {
@@ -146,6 +191,8 @@ void DialUi::refresh_() {
       ScreenSensor *scr = this->visible_sensor_();
       if (this->page_.kind == PageKind::SENSOR && scr->is_bound_to(ri, i))
         scr->update(room, online, true);
+      if (this->page_.kind == PageKind::HISTORY && this->page_.room == ri && this->history_screen_.is_bound_to(ri, i))
+        this->history_screen_.update(room, online);
     }
   }
 }
@@ -153,7 +200,7 @@ void DialUi::refresh_() {
 // ---- Navigation (spec.md "Navigation rules") ----
 
 void DialUi::nav_(NavAction action) {
-  NavShape shape{this->rooms_.size(), this->readings_per_room_.data()};
+  NavShape shape{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
   NavResult r = nav_apply(this->page_, action, shape, &this->before_settings_);
   if (r.changed)
     this->show_(r.page, r.slide);
@@ -166,6 +213,7 @@ void DialUi::open_metric_(size_t room, size_t index) {
 
 void DialUi::show_(const Page &page, Slide slide) {
   this->cancel_hold_();
+  this->end_scrub_();
   Page prev = this->page_;
   this->page_ = page;
   switch (page.kind) {
@@ -190,6 +238,11 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->load_(scr->screen(), slide);
       break;
     }
+    case PageKind::HISTORY:
+      this->history_screen_.bind(this->rooms_[page.room], page.room, page.index, this->online_last_);
+      this->history_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->history_screen_.screen(), slide);
+      break;
     case PageKind::SETTINGS:
       this->settings_screen_.nudge(arrival_dy(slide, NUDGE_SETTINGS_PX));
       this->load_(this->settings_screen_.screen(), slide);
@@ -233,6 +286,9 @@ void DialUi::on_event_(lv_event_t *e) {
   bool from_encoder = indev != nullptr && lv_indev_get_type(indev) == LV_INDEV_TYPE_ENCODER;
   bool from_touch = indev != nullptr && lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER;
 
+  if (this->page_.kind == PageKind::HISTORY && this->history_event_(e, code, from_encoder))
+    return;
+
   switch (code) {
     case LV_EVENT_KEY: {  // encoder turn
       uint32_t key = lv_event_get_key(e);
@@ -258,6 +314,8 @@ void DialUi::on_event_(lv_event_t *e) {
       break;
     case LV_EVENT_GESTURE: {
       this->cancel_hold_();
+      if (this->scrub_hold_timer_ != nullptr)
+        lv_timer_pause(this->scrub_hold_timer_);
       lv_dir_t dir = lv_indev_get_gesture_dir(indev);
       // Ignore the rest of this touch, so the release is not also read as a tap.
       lv_indev_wait_release(indev);
@@ -293,6 +351,126 @@ void DialUi::on_event_(lv_event_t *e) {
     default:
       break;
   }
+}
+
+// ---- History scrub (design ScreenHistory; spec.md "Level 2 interaction pages") ----
+
+// Returns true when the event was consumed by the History page.
+bool DialUi::history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder) {
+  if (code == LV_EVENT_KEY) {  // turn never changes page here; while scrubbing it moves the cursor
+    if (this->scrub_encoder_) {
+      int i = this->history_screen_.scrub_index();
+      uint32_t key = lv_event_get_key(e);
+      if (key == LV_KEY_RIGHT && i + 1 < static_cast<int>(HourlyHistory::POINTS))
+        this->scrub_to_(i + 1);
+      else if (key == LV_KEY_LEFT && i > 0)
+        this->scrub_to_(i - 1);
+    }
+    return true;
+  }
+  if (code == LV_EVENT_SHORT_CLICKED && from_encoder) {
+    if (this->scrub_encoder_) {
+      this->end_scrub_();  // press ends the scrub
+    } else {
+      const Reading &r = this->rooms_[this->page_.room].readings[this->page_.index];
+      int latest = r.history.latest_index();
+      this->scrub_encoder_ = true;  // press starts the scrub on the latest sample
+      this->scrub_to_(latest >= 0 ? latest : static_cast<int>(HourlyHistory::POINTS) - 1);
+    }
+    return true;
+  }
+  if (code == LV_EVENT_LONG_PRESSED && from_encoder && this->scrub_encoder_) {
+    this->end_scrub_();  // long press ends a scrub instead of going back
+    return true;
+  }
+  if (code == LV_EVENT_GESTURE && this->scrub_touch_)
+    return true;  // a drag while scrubbing is not a swipe
+  return false;
+}
+
+void DialUi::chart_event_cb_(lv_event_t *e) {
+  static_cast<DialUi *>(lv_event_get_user_data(e))->on_chart_event_(e);
+}
+
+void DialUi::on_chart_event_(lv_event_t *e) {
+  if (this->page_.kind != PageKind::HISTORY)
+    return;
+  lv_indev_t *indev = lv_indev_active();
+  if (indev == nullptr || lv_indev_get_type(indev) != LV_INDEV_TYPE_POINTER)
+    return;
+  switch (lv_event_get_code(e)) {
+    case LV_EVENT_PRESSED:
+      // A hold of 250 ms starts the scrub; a quick drag before that stays a swipe.
+      this->scrub_indev_ = indev;
+      lv_indev_get_point(indev, &this->scrub_point_);
+      lv_timer_reset(this->scrub_hold_timer_);
+      lv_timer_resume(this->scrub_hold_timer_);
+      break;
+    case LV_EVENT_PRESSING:
+      if (this->scrub_touch_) {
+        int i = this->history_screen_.chart().pressed_index();
+        if (i >= 0 && i != this->history_screen_.scrub_index())
+          this->scrub_to_(i);
+      }
+      break;
+    case LV_EVENT_RELEASED:
+    case LV_EVENT_PRESS_LOST:
+      lv_timer_pause(this->scrub_hold_timer_);
+      if (this->scrub_touch_) {
+        this->scrub_touch_ = false;
+        lv_obj_add_flag(this->history_screen_.chart().obj(), LV_OBJ_FLAG_GESTURE_BUBBLE);
+        lv_timer_reset(this->scrub_revert_timer_);  // keep the readout 2 s, then back to live
+        lv_timer_resume(this->scrub_revert_timer_);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
+void DialUi::scrub_hold_cb_(lv_timer_t *t) {
+  auto *self = static_cast<DialUi *>(lv_timer_get_user_data(t));
+  lv_timer_pause(t);
+  if (self->page_.kind != PageKind::HISTORY || self->scrub_indev_ == nullptr)
+    return;
+  lv_point_t p;
+  lv_indev_get_point(self->scrub_indev_, &p);
+  int32_t dx = p.x - self->scrub_point_.x, dy = p.y - self->scrub_point_.y;
+  if (dx * dx + dy * dy > HOLD_SLOP_PX * HOLD_SLOP_PX)
+    return;  // moved before the hold: that was a swipe
+  self->scrub_encoder_ = false;
+  self->scrub_touch_ = true;
+  lv_timer_pause(self->scrub_revert_timer_);
+  // The drag must not become a swipe: stop the chart's gestures reaching the screen.
+  lv_obj_remove_flag(self->history_screen_.chart().obj(), LV_OBJ_FLAG_GESTURE_BUBBLE);
+  int i = self->history_screen_.chart().pressed_index();
+  self->scrub_to_(i >= 0 ? i : static_cast<int>(HourlyHistory::POINTS) - 1);
+}
+
+void DialUi::scrub_revert_cb_(lv_timer_t *t) {
+  auto *self = static_cast<DialUi *>(lv_timer_get_user_data(t));
+  lv_timer_pause(t);
+  if (!self->scrub_touch_)
+    self->end_scrub_();
+}
+
+void DialUi::scrub_to_(int index) {
+  this->history_screen_.scrub(this->rooms_[this->page_.room], index, this->online_last_);
+}
+
+void DialUi::end_scrub_() {
+  bool active = this->scrub_encoder_ || this->scrub_touch_ || this->history_screen_.scrub_index() >= 0;
+  this->scrub_encoder_ = false;
+  this->scrub_touch_ = false;
+  if (this->scrub_hold_timer_ != nullptr)
+    lv_timer_pause(this->scrub_hold_timer_);
+  if (this->scrub_revert_timer_ != nullptr)
+    lv_timer_pause(this->scrub_revert_timer_);
+  lv_obj_t *chart = this->history_screen_.chart().obj();
+  if (chart != nullptr)
+    lv_obj_add_flag(chart, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  if (active && this->page_.kind == PageKind::HISTORY)
+    this->scrub_to_(-1);
 }
 
 void DialUi::cancel_hold_() {

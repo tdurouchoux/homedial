@@ -8,6 +8,8 @@ esphome:
     - -DLV_USE_ARC=1
     - -DLV_USE_LABEL=1
     - -DLV_USE_FLEX=1
+    - -DLV_USE_CHART=1   # History TrendChart
+    - -DLV_USE_LINE=1    # dashed limit line on the chart
     # Stock Montserrat sizes used by the Dialed design (English UI, ASCII + degree sign + LV_SYMBOL_*).
     # Size 14 is already enabled by ESPHome as the LVGL default font.
     - -DLV_FONT_MONTSERRAT_12=1

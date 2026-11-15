@@ -15,7 +15,8 @@ static int failures = 0;
   } while (0)
 
 static const size_t READINGS[] = {3, 2};  // two rooms
-static const NavShape SHAPE{2, READINGS};
+static const uint8_t HISTORY[] = {0b001, 0b11};  // room 0: only reading 0 has history
+static const NavShape SHAPE{2, READINGS, HISTORY};
 
 static NavResult go(const Page &p, NavAction a, Page *before) { return nav_apply(p, a, SHAPE, before); }
 
@@ -41,7 +42,18 @@ int main() {
   CHECK(r.page == (Page{PageKind::SENSOR, 1, 1}));
   CHECK(!go(Page{PageKind::SENSOR, 1, 1}, NavAction::NEXT, &before).changed);
   CHECK(!go(s, NavAction::PREV, &before).changed);
-  CHECK(!go(s, NavAction::OPEN, &before).changed);  // History: M4
+  // Deeper from a Sensor page opens History only when the reading keeps history.
+  r = go(s, NavAction::OPEN, &before);
+  CHECK(r.page == (Page{PageKind::HISTORY, 1, 0}) && r.slide == Slide::UP);
+  CHECK(go(Page{PageKind::SENSOR, 0, 0}, NavAction::OPEN, &before).changed);
+  CHECK(!go(Page{PageKind::SENSOR, 0, 1}, NavAction::OPEN, &before).changed);
+  // History: only back changes page, to the same Sensor page.
+  Page hist{PageKind::HISTORY, 1, 1};
+  CHECK(!go(hist, NavAction::NEXT, &before).changed);
+  CHECK(!go(hist, NavAction::PREV, &before).changed);
+  CHECK(!go(hist, NavAction::OPEN, &before).changed);
+  r = go(hist, NavAction::BACK, &before);
+  CHECK(r.page == (Page{PageKind::SENSOR, 1, 1}) && r.slide == Slide::DOWN);
   r = go(Page{PageKind::SENSOR, 1, 1}, NavAction::BACK, &before);
   CHECK(r.page == room1 && r.slide == Slide::DOWN);
 
@@ -63,6 +75,9 @@ int main() {
   CHECK(swipe_action(PageKind::ROOM, Swipe::DOWN, &a) && a == NavAction::BACK);
   CHECK(swipe_action(PageKind::SENSOR, Swipe::LEFT, &a) && a == NavAction::NEXT);
   CHECK(swipe_action(PageKind::SENSOR, Swipe::RIGHT, &a) && a == NavAction::PREV);
+  CHECK(swipe_action(PageKind::HISTORY, Swipe::DOWN, &a) && a == NavAction::BACK);
+  CHECK(!swipe_action(PageKind::HISTORY, Swipe::LEFT, &a));
+  CHECK(!swipe_action(PageKind::HISTORY, Swipe::UP, &a));
 
   if (failures == 0)
     std::printf("All nav tests passed\n");

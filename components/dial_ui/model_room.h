@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "model_history.h"
 #include "model_metric.h"
 
 namespace esphome::dial_ui {
@@ -14,6 +15,8 @@ struct Reading {
   Thresholds thresholds;
   float value{NAN};
   bool dirty{true};  // set by inbound callbacks, cleared when the views are refreshed
+  bool has_history{false};  // YAML `history: true`: sampled once a minute, History page
+  HourlyHistory history;
 };
 
 struct Room {

@@ -38,9 +38,9 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation: swipes, slides, Settings entry) compiles; not yet confirmed on the device.
+- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) compiles; not yet confirmed on the device.
 - Host unit tests for the LVGL-free `model_*` files: `tests/host/run.sh`.
-- Flash budget: the stock Montserrat 40 and 48 fonts are large; M3 uses 74.7 % of the 1.75 MB app partition (the build assumes 4 MB flash; `flash_size: 8MB` would roughly double the app slot once the chip size is confirmed). Check the size line of each compile.
+- Flash budget: the stock Montserrat 40 and 48 fonts are large; M4 uses 75.6 % of the 1.75 MB app partition (the build assumes 4 MB flash; `flash_size: 8MB` would roughly double the app slot once the chip size is confirmed). Check the size line of each compile.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.

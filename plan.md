@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1 and M2 confirmed on the device by the user (FT5x06 "Failed to read status" warnings under investigation; I2C raised to 400 kHz). M3 written, unit-tested and compiled (flash 74.7 %, RAM 31 %); awaiting on-device check.
+Status: M1–M3 confirmed on the device by the user. M4 (History) written, unit-tested and compiled (flash 75.6 %, RAM 31 %); awaiting on-device check.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -47,6 +47,7 @@ tests/host/                   # g++ unit tests for model/
 
 **M4 – History.** Ring buffer (24 closed hourly buckets + open; running mean; once-a-minute in-memory sample; missing hours; wall clock from HA time). TrendChart (`lv_chart`, LINE, cursor) + ScreenHistory with encoder and touch scrub (250 ms hold).
 *Host tests:* rollover, gaps, minute sampling, clock-not-valid.
+*Done:* `model_history.h` (25 points: 24 closed hours + current), `widget_trend_chart.*` (ext y array, cursor, last-point and scrub dots, dashed limit `lv_line`), `screen_history.*`, History in `model_nav.h` (only for `history: true` readings; level 2: turn/swipe never change page, swipe down / long press back). Touch scrub uses its own 250 ms hold timer on the chart (the touch indev's long-press time stays at its default, so slow taps on Room readings still work); the chart stops bubbling gestures while scrubbing. `time_id` is required when any metric has `history: true`. Build flags add `LV_USE_CHART` and `LV_USE_LINE`.
 
 **M5 – Weather now + forecast.** Weather sensors (temperature attribute, condition text_sensor, next-rain attributes `1_hour_forecast` / `forecast_time_ref`). Rain parser (Python-repr dict, `Temps sec` = dry) → segmented 60-min arc. Condition → icon table. Icon font. `on_forecast_request` trigger (automation in schema) + `load_forecast(JsonArrayConst)`; requested on connect, every 30 min, on page open if > 30 min old. ScreenWeather, ScreenForecast (snap strip, encoder focus).
 *Host tests:* rain parser (dry, rain, partial, malformed), forecast row filtering, icon map.
