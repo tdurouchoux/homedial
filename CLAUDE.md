@@ -54,10 +54,10 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Secrets always via `!secret`; never hardcode passwords or keys; never commit `secrets.yaml`.
 
 ## Workflow
-- Claude can run ESPHome through uv without installing it: `uvx esphome config homedial.yaml` (validation; `uvx esphome version` gave 2026.10.2). It needs a `secrets.yaml` next to the config: use a throwaway dummy one, never commit it. Compile, flash and device logs are run by the user on their machine, who reports the output verbatim. Claude never claims a flash or on-device check passed unless the user confirmed it.
-- Validate: `esphome config homedial.yaml`
-- Build: `esphome compile homedial.yaml`
-- Flash + logs: `esphome run homedial.yaml` (USB first time, OTA afterwards); logs only: `esphome logs homedial.yaml`
+- Validate (Claude and user): `esphome config homedial.yaml`. Claude has no `esphome` install, so it runs `uvx esphome config homedial.yaml` instead (currently resolves to ESPHome 2026.10.2). This needs a `secrets.yaml` next to the config: use a throwaway dummy one, never commit it.
+- Build (user): `esphome compile homedial.yaml`
+- Flash + logs (user): `esphome run homedial.yaml` (USB first time, OTA afterwards); logs only: `esphome logs homedial.yaml`
+- The user runs compile, flash and device logs on their own machine and reports the output verbatim. Claude never claims a build, flash or on-device check passed unless the user confirmed it.
 - After each change: validate -> compile -> flash -> check logs on the device. Report compile errors verbatim and fix root causes; do not guess pins or APIs, check the docs or the installed ESPHome source.
 - Work in small steps (one screen or widget at a time) and keep the config compiling between steps.
 
