@@ -13,6 +13,7 @@ class ScreenRoom {
   void create(const Room &room);
   void update_reading(const Room &room, size_t index, bool online);
   void set_dots(size_t count, size_t active) { this->dots_.set(count, active); }
+  void animate_dots(size_t count, size_t from, size_t active) { this->dots_.animate(count, from, active); }
   lv_obj_t *screen() const { return this->screen_; }
   // Reading slot that was tapped, or -1.
   int slot_index(lv_obj_t *obj) const;

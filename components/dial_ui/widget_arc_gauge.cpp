@@ -24,6 +24,13 @@ void ArcGauge::create(lv_obj_t *parent) {
   this->arc_ = arc;
 }
 
+void ArcGauge::reset() {
+  if (this->arc_ == nullptr)
+    return;
+  lv_anim_delete(this->arc_, &ArcGauge::anim_cb_);
+  lv_arc_set_value(this->arc_, 0);
+}
+
 void ArcGauge::anim_cb_(void *arc, int32_t v) { lv_arc_set_value(static_cast<lv_obj_t *>(arc), v); }
 
 void ArcGauge::set(float fraction, Status status, bool animate) {

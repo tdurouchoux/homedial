@@ -23,15 +23,20 @@ void ScreenSensor::create() {
   this->dots_.create(this->screen_);
 }
 
-void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool online) {
+void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool online, size_t dots_from) {
   this->room_index_ = room_index;
   this->index_ = index;
   const MetricInfo &info = metric_info(room.readings[index].metric);
   lv_label_set_text(this->room_, room.name.c_str());
   lv_label_set_text(this->metric_, info.name);
   lv_label_set_text(this->unit_, info.unit);
-  this->dots_.set(room.readings.size(), index);
-  this->update(room, online, false);
+  if (dots_from == SIZE_MAX)
+    this->dots_.set(room.readings.size(), index);
+  else
+    this->dots_.animate(room.readings.size(), dots_from, index);
+  // Ring sweep on arrival: only the thin ring is redrawn (cheap, unlike a page slide).
+  this->gauge_.reset();
+  this->update(room, online, true);
 }
 
 void ScreenSensor::update(const Room &room, bool online, bool animate) {

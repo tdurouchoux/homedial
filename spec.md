@@ -45,7 +45,7 @@ Settings (above the carousel):
   - History: press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on the chart, then drag.
   - Hourly forecast: turn moves the focus one hour; drag scrolls and snaps; tap centres a column.
   - Adjust: turn changes the value by one step, press saves, long press cancels.
-- **No page-change animation** (decided 2026-11-15, after testing on the device): pages switch instantly, including opening and leaving Settings. The 200 ms slide felt laggy. This differs from `design/README.md` ("Motion").
+- **No page-change animation** (decided 2026-11-15, after testing on the device): pages switch instantly, including opening and leaving Settings. The 200 ms slide felt laggy. Instead, two light motions (only small areas redraw): the page dots' active bar glides to the new page in 150 ms (carousel and Sensor siblings), and a Sensor page's ring sweeps from 0 to its value in 250 ms on arrival. This differs from `design/README.md` ("Motion").
 
 ## Settings list
 

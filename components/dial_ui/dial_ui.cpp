@@ -92,6 +92,7 @@ void DialUi::setup() {
   }
   this->online_last_ = this->online_();
   this->refresh_();
+  this->page_ = Page{PageKind::SETTINGS, 0, 0};  // so the first show_() places the dots directly
   this->show_(Page{PageKind::ROOM, 0, 0}, Slide::NONE);  // boots on the first room
 }
 
@@ -143,16 +144,25 @@ void DialUi::open_metric_(size_t room, size_t index) {
 
 void DialUi::show_(const Page &page, Slide slide) {
   this->cancel_hold_();
+  Page prev = this->page_;
   this->page_ = page;
   switch (page.kind) {
-    case PageKind::ROOM:
-      this->load_(this->room_screens_[page.room].screen(), slide);
+    case PageKind::ROOM: {
+      ScreenRoom &scr = this->room_screens_[page.room];
+      // Dots glide when moving along the carousel; otherwise they are placed directly.
+      if (prev.kind == PageKind::ROOM && prev.room != page.room)
+        scr.animate_dots(this->rooms_.size(), prev.room, page.room);
+      else
+        scr.set_dots(this->rooms_.size(), page.room);
+      this->load_(scr.screen(), slide);
       break;
+    }
     case PageKind::SENSOR: {
-      // Bind the hidden Sensor screen and slide it in; the visible one slides out.
       this->sensor_active_ ^= 1;
       ScreenSensor *scr = this->visible_sensor_();
-      scr->bind(this->rooms_[page.room], page.room, page.index, this->online_last_);
+      bool sibling = prev.kind == PageKind::SENSOR && prev.room == page.room;
+      scr->bind(this->rooms_[page.room], page.room, page.index, this->online_last_,
+                sibling ? prev.index : SIZE_MAX);
       this->load_(scr->screen(), slide);
       break;
     }
