@@ -60,13 +60,9 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 - **Alerts:** soft and visual only. The reading turns `warn` / `danger` and its status label follows. Nothing takes over the screen, nothing needs to be dismissed, and an alert does not wake the screen. It clears when the reading recovers.
 - **Missing data:** a value shows `--` with the OFFLINE status (design rule).
 
-## Changes needed in `design/` to match this spec (not applied yet)
+## Design alignment
 
-- ScreenHistory: remove the swipe/turn to the same metric in the next room.
-- ScreenAlert and the input table: replace the takeover and mute by soft alerts (status colour).
-- ScreenEnergy: drop (or mark as future).
-- Input table: swipe down at level 0 opens Settings; the settings jump is by long press, touch hold or swipe down.
-- ListMenu rows and a Settings page: add the four rows above.
+`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy marked as a future page, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
 
 ## Open questions
 
