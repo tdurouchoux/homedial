@@ -141,7 +141,7 @@ Checked against the sources:
 - Requires **"Allow the device to perform Home Assistant actions"** in the HA device options (`CONF_ALLOW_SERVICE_CALLS` in `manager.py`).
 - **Not verified yet:** the `weather.get_forecasts` response shape (`{entity_id: {forecast: [...]}}`) was not checked in HA source this session, and the template has not been run. Check in HA Developer tools > Actions when implementing.
 
-Requested on connect, every 30 min, and when the Forecast page opens with data older than 30 min. One request at a time.
+Requested on connect and when the Forecast page opens with data older than 30 min; no periodic timer. One request at a time.
 
 ## 7. Outbound: UI → device and UI → HA
 
