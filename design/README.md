@@ -15,7 +15,7 @@ Every metric is one of three kinds. The kind decides what the ring means and whe
 | --- | --- | --- | --- |
 | Status | Temperature, humidity, CO2, PM2.5 (each in a room) | Fills 0 to 100% of the sensor range | Ring and status label follow `ok`, `warn`, `danger` |
 | Consumption | Power now; energy today | Power: 0 to the contract limit. Energy: 24 hourly bars, no ring | Power turns `warn` at 80% of the limit and `danger` at 100%. Energy bars stay neutral (`line`, `accent`) except bars above a limit, which are `warn` with a dashed line |
-| Information | Weather now, forecast | Weather now: today's low to high, knob at the current value | `accent` only. A provider's weather warning is a WARN or ALERT status label, nothing else on weather is a state colour |
+| Information | Weather now, hourly forecast | Weather now: arc = rain left (0 to 6 h), when raining | `accent` only. A provider's weather warning is a WARN or ALERT status label, nothing else on weather is a state colour |
 
 Weather, power and energy follow the anatomy of the Sensor page (names on top, hero value, unit or condition word, one status or hint line, PageDots below), without a room line.
 
@@ -42,7 +42,7 @@ Design every screen for all three inputs; none may be required alone. The hardwa
 | Encoder long press (600 ms) | Back, one level up (from an editor: cancel; from a scrub: end it). At the top level there is nothing to go back to, so it opens the settings list. |
 | Optional second button | Shortcut only: short press = back, same as long press; never required. |
 | Tap | Same as press on the tapped row or control; targets are 40 px or larger. On a Room page, a tap on a reading opens that metric's Sensor page directly. |
-| Swipe left or right | Next or previous sibling at the same depth: the next page of a carousel, the next item of a series. |
+| Swipe left or right | Next or previous sibling at the same depth: the next page of a carousel, the next item of a series. On a page that is itself a scrolling strip (hourly forecast) it scrolls the strip instead. |
 | Swipe up | Go deeper: open the detail of the current page, same as press. |
 | Swipe down | Back one level, same as long press. Nothing at the top level. |
 | Touch and hold 250 ms on a chart, then drag | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
