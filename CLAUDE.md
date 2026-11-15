@@ -30,12 +30,14 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Board: ESP32-S3 (StampS3), `esp32: variant: esp32s3`, framework `esp-idf`, `platformio_options: board_build.flash_mode: dio`.
 - I2C: SDA GPIO11, SCL GPIO12. RTC PCF8563 @0x51, touch FT5x06 @0x38 (interrupt pin unsupported, leave unset), NFC RC522 @0x28.
 - SPI: MOSI GPIO5, CLK GPIO6. Display GC9A01A: CS GPIO7, DC GPIO4, RESET GPIO8, `invert_colors: true`. Backlight LEDC GPIO9 (exposed as light `display_backlight`).
-- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery; currently misdeclared as an input binary sensor in `homedial.yaml`).
+- Encoder: A GPIO40, B GPIO41 (INPUT_PULLUP). Encoder push button GPIO42 (inverted, pullup): the **only** physical button. Buzzer LEDC GPIO3. HOLD GPIO46 (output, drive high to keep power on battery).
 - Ports: A = GPIO13/15, B = GPIO1/2.
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Per the user, an earlier base config compiled and ran, with the HA sensor -> display path working and the backlight toggling from HA, button and touch. The current `homedial.yaml` only partly matches that: it has no touchscreen, the encoder is a plain `rotary_encoder` sensor (not an LVGL input), the button toggles the backlight (to be replaced by the design's input model), and it still contains a demo `lvgl:` page (temp arc/label) and a placeholder entity `sensor.livingroom_temperature`, all to be removed once `dial_ui` renders the UI. Nothing has been re-verified in this repo yet.
+- `homedial.yaml` is a **prototype**, not the target config. It lacks the features and structure the finished project needs (touchscreen, encoder as LVGL input, HOLD output, `dial_ui`, packages, entities); building these is part of the development scope. It contains a demo `lvgl:` page and a placeholder HA entity that will be replaced.
+- The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
+- Per the user, an earlier prototype compiled and ran with the HA sensor -> display path working. Nothing has been re-verified in this repo yet.
 - Display platform in use: `ili9xxx` model GC9A01A. M5Stack's own example uses `mipi_spi`; switch if the ESPHome version requires it.
 - With LVGL: display needs `update_interval: never`, `auto_clear_enabled: false`, and no display lambda.
 
