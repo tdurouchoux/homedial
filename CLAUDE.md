@@ -54,6 +54,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Secrets always via `!secret`; never hardcode passwords or keys; never commit `secrets.yaml`.
 
 ## Workflow
+- Claude has no `esphome` CLI in its environment. The user runs validate, compile, flash and logs on their own machine and reports the output (verbatim errors). Claude edits files and reasons from the installed ESPHome source or docs; it never claims a build or flash passed unless the user confirmed it.
 - Validate: `esphome config homedial.yaml`
 - Build: `esphome compile homedial.yaml`
 - Flash + logs: `esphome run homedial.yaml` (USB first time, OTA afterwards); logs only: `esphome logs homedial.yaml`
