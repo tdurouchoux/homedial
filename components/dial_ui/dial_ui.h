@@ -20,6 +20,7 @@
 #include "model_weather.h"
 #include "model_room.h"
 #include "model_settings.h"
+#include "model_sleep.h"
 #include "screen_adjust.h"
 #include "screen_forecast.h"
 #include "screen_history.h"
@@ -47,6 +48,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void set_backlight(light::LightState *backlight) { this->backlight_ = backlight; }
   void set_buzzer(output::FloatOutput *buzzer) { this->buzzer_ = buzzer; }
   void set_power_hold(switch_::Switch *hold) { this->power_hold_ = hold; }
+  // Dim and sleep after no input (spec.md "Behaviour"; defaults 30 s and 60 s).
+  void set_sleep_times(uint32_t dim_after_ms, uint32_t off_after_ms) { this->sleep_.set_times(dim_after_ms, off_after_ms); }
   // YAML `on_forecast_request:` runs weather.get_forecasts and hands the compacted rows back:
   //   on_success: - lambda: id(ui).load_forecast(response["response"]);
   Trigger<> *get_forecast_request_trigger() { return &this->forecast_request_trigger_; }
@@ -73,6 +76,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
 
   // Settings
   void apply_luminosity_(int percent);
+  int current_luminosity_() const;
+  void update_sleep_();
   void tick_();
   void save_settings_();
   void activate_row_(SettingsRow row);
@@ -127,7 +132,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   int volume_{50};
   int adjust_value_{0};  // value being edited on the Adjust page
   DetentAccel accel_;
-  bool screen_off_state_{false};
+  bool screen_off_state_{false};  // backlight off (sleep or Settings > Screen off)
+  SleepTimer sleep_;
   bool hold_released_{false};        // Power off turned HOLD off (still running: on USB)
   uint8_t swallow_encoder_click_{0};  // the press that woke the screen is not acted on (1: down, 2: released)
   bool has_power_{false};

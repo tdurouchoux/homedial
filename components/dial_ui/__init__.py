@@ -41,6 +41,8 @@ CONF_POWER = "power"
 CONF_BACKLIGHT = "backlight"
 CONF_BUZZER = "buzzer"
 CONF_POWER_HOLD = "power_hold"
+CONF_DIM_AFTER = "dim_after"
+CONF_OFF_AFTER = "off_after"
 CONF_CONTRACT_LIMIT = "contract_limit"
 MAX_CAROUSEL_PAGES = 7  # PageDots fit 3 to 7 pages (design/components/PageDots)
 CONF_WARN_LOW = "warn_low"
@@ -155,6 +157,12 @@ POWER_SCHEMA = cv.Schema(
 )
 
 
+def _validate_sleep(config):
+    if config[CONF_OFF_AFTER] <= config[CONF_DIM_AFTER]:
+        raise cv.Invalid("off_after must be longer than dim_after", [CONF_OFF_AFTER])
+    return config
+
+
 def _validate_carousel(config):
     pages = len(config[CONF_ROOMS]) + (CONF_WEATHER in config) + (CONF_POWER in config)
     if pages > MAX_CAROUSEL_PAGES:
@@ -192,9 +200,12 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
         cv.Optional(CONF_BUZZER): cv.use_id(output.FloatOutput),
         cv.Optional(CONF_POWER_HOLD): cv.use_id(switch.Switch),
+        # No input: dim to 30 % after dim_after, screen off after off_after (spec.md "Behaviour").
+        cv.Optional(CONF_DIM_AFTER, default="30s"): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_OFF_AFTER, default="60s"): cv.positive_time_period_milliseconds,
     }
 ).extend(cv.COMPONENT_SCHEMA)
-CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time, _validate_carousel)
+CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _validate_history_needs_time, _validate_carousel, _validate_sleep)
 
 
 def _float_expr(value):
@@ -254,3 +265,4 @@ async def to_code(config):
         cg.add(var.set_buzzer(await cg.get_variable(config[CONF_BUZZER])))
     if CONF_POWER_HOLD in config:
         cg.add(var.set_power_hold(await cg.get_variable(config[CONF_POWER_HOLD])))
+    cg.add(var.set_sleep_times(config[CONF_DIM_AFTER].total_milliseconds, config[CONF_OFF_AFTER].total_milliseconds))

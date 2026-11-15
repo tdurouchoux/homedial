@@ -65,6 +65,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Screen off, Power
 ## Behaviour
 
 - **Dimming and sleep:** with no input, the panel dims to 30% after 30 s and the screen turns off (backlight off) after 60 s in total. Any input wakes it to full brightness. The first input after a screen-off only wakes the screen and is not acted on.
+  - Implemented in M8 (2026-11-15): input = any touch press, button press or encoder turn (LVGL's own inactivity time). The dim level is 30 % or the user's luminosity if lower. While dimmed, an input restores full brightness and acts normally; from off, the first input only wakes. The delays are `dim_after` / `off_after` in `dial_ui:` (defaults 30 s / 60 s).
 - **Alerts:** soft and visual only. The reading turns `warn` / `danger` and its status label follows. Nothing takes over the screen, nothing needs to be dismissed, and an alert does not wake the screen. It clears when the reading recovers.
 - **Missing data:** a value shows `--` with the OFFLINE status (design rule).
 

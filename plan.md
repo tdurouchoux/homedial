@@ -1,6 +1,6 @@
 # Implementation plan: homedial firmware (ESPHome + dial_ui)
 
-Status: M1–M6 confirmed on the device (M4 history needs hours of uptime for a full check). M7 (Settings) written, unit-tested and compiled (flash 36.9 %, RAM 32 %); awaiting on-device check.
+Status: M1–M7 confirmed on the device (M4 history needs hours of uptime for a full check). M8 (dim and sleep) written, unit-tested and compiled (flash 36.9 %, RAM 32 %); awaiting on-device check. All planned milestones are written.
 
 ## Context
 `spec.md` (screens, navigation, behaviour), `design/` (Dialed look) and `contract.md` (ESPHome ↔ UI data contract) are now settled enough to build. `homedial.yaml` is still the prototype: a YAML demo arc page, no touchscreen, no encoder as LVGL input, no HOLD, no `dial_ui`. Goal: build the real firmware in small flashable steps (vertical slice first), validating every step with `uvx esphome config` and handing builds/flashes to the user.
@@ -61,6 +61,7 @@ tests/host/                   # g++ unit tests for model/
 *Done:* `model_settings.h` (rows, ranges, detent acceleration; host-tested), `screen_settings.*` (ListMenu: three rows, thumb), `screen_adjust.*` (ring slider, OK button), ADJUST in `model_nav.h`, encoder tick on `buzzer`, minimal wake from Screen off (first input swallowed) ahead of M8.
 
 **M8 – Dim and sleep.** 30 s → 30 %, 60 s → off, wake on any input, first input after screen-off swallowed; alerts don't wake.
+*Done:* `model_sleep.h` (host-tested state machine) driven by `lv_display_get_inactive_time()`; `dim_after` / `off_after` options; dim level `min(30 %, luminosity)`; the Luminosity Adjust preview is the brightness restored after a dim.
 
 ## Docs to update along the way
 - `CLAUDE.md`: fonts (stock sizes via build flags), token include method, input via LVGL indev, resolved open questions.

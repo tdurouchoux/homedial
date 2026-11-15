@@ -307,6 +307,7 @@ void DialUi::setup() {
 
 void DialUi::loop() {
   uint32_t now = millis();
+  this->update_sleep_();
   if (!this->sampled_once_ || now - this->last_sample_ms_ >= SAMPLE_MS)
     this->sample_history_();
   if (now - this->last_refresh_ms_ < REFRESH_MS)
@@ -882,8 +883,40 @@ void DialUi::apply_luminosity_(int percent) {
   call.perform();
 }
 
+// Dim after 30 s without input, off after 60 s (spec.md "Behaviour"). LVGL records the last input
+// (any press, touch or button, and any encoder turn: lv_indev.c), so no input hook is needed.
+// Data updates and alerts never count as input, so they never wake the screen.
+void DialUi::update_sleep_() {
+  if (this->parent_ == nullptr || this->parent_->get_disp() == nullptr)
+    return;
+  switch (this->sleep_.update(lv_display_get_inactive_time(this->parent_->get_disp()))) {
+    case SleepAction::DIM:
+      ESP_LOGD(TAG, "No input: dim");
+      this->apply_luminosity_(dim_level(this->current_luminosity_()));
+      break;
+    case SleepAction::RESTORE:
+      this->apply_luminosity_(this->current_luminosity_());
+      break;
+    case SleepAction::TURN_OFF:
+      ESP_LOGD(TAG, "No input: screen off");
+      this->screen_off_();
+      break;
+    default:
+      break;
+  }
+}
+
+// The brightness the screen should have when awake: the value being previewed on the
+// Luminosity Adjust page, otherwise the saved one.
+int DialUi::current_luminosity_() const {
+  if (this->page_.kind == PageKind::ADJUST && static_cast<SettingsRow>(this->page_.index) == SettingsRow::LUMINOSITY)
+    return this->adjust_value_;
+  return this->luminosity_;
+}
+
 void DialUi::screen_off_() {
   this->screen_off_state_ = true;
+  this->sleep_.force_off();
   if (this->backlight_ != nullptr) {
     auto call = this->backlight_->make_call();
     call.set_state(false);
@@ -894,12 +927,13 @@ void DialUi::screen_off_() {
 
 void DialUi::wake_() {
   this->screen_off_state_ = false;
+  this->sleep_.wake();
   this->cancel_timeout("power_off");
   if (this->hold_released_ && this->power_hold_ != nullptr) {
     this->power_hold_->turn_on();
     this->hold_released_ = false;
   }
-  this->apply_luminosity_(this->luminosity_);
+  this->apply_luminosity_(this->current_luminosity_());
 }
 
 void DialUi::tick_() {
