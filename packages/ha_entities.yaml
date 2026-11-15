@@ -2,10 +2,10 @@
 sensor:
   - platform: homeassistant
     id: living_room_temperature
-    entity_id: sensor.living_room_temperature
+    entity_id: sensor.livingroom_temperature
   - platform: homeassistant
     id: living_room_humidity
-    entity_id: sensor.living_room_humidity
+    entity_id: sensor.livingroom_humidity
   - platform: homeassistant
     id: living_room_iaq
-    entity_id: sensor.living_room_iaq   # BME688 BSEC IAQ index (0 to 500)
+    entity_id: sensor.livingroom_air_quality_index   # BME688 BSEC IAQ index (0 to 500)
