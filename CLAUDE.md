@@ -23,7 +23,7 @@ homedial.yaml          # main config: hardware + packages (name is `homedial`)
 secrets.yaml           # NEVER commit; wifi_ssid, wifi_password, homedial__encryption_key, homedial__ap_password
 packages/              # optional: hardware.yaml, ui.yaml, ha_entities.yaml
 components/dial_ui/    # __init__.py, dial_ui.h, dial_ui.cpp (+ generated font sources)
-plan.md                # implementation milestones
+plan.md                # implementation status and open items
 spec.md                # product spec: screens, navigation, settings, behaviour
 contract.md            # data contract between ESPHome YAML and dial_ui (draft)
 design/                # Dialed design system (tokens, LVGL notes, component specs)
@@ -38,7 +38,7 @@ design/                # Dialed design system (tokens, LVGL notes, component spe
 - Flashing: first flash over USB-C (data cable). If the port does not show, enter download mode: hold G0 on the StampS3 (back), plug in USB, release. Reset after flashing. Later updates over Wi-Fi OTA.
 
 ## Known state
-- Implementation follows the milestones in `plan.md`. M1 (hardware packages, LVGL input devices, HOLD, empty screen) works on the device (user, 2026-11-15). M2 (rooms model, Room and Sensor pages) works on the device (user). M3 (navigation, light motion, Settings entry) works on the device (user). M4 (History: 24 h hourly chart with scrub) runs on the device (full check needs hours of uptime). M5 (Weather now, hourly forecast) works on the device (user). M6 (Electricity) works on the device (user). M7 (Settings: luminosity, buzzer volume, screen off, power off) works on the device (user). M8 (dim after 30 s, screen off after 60 s) compiles; not yet confirmed on the device.
+- All planned milestones (M1–M8) are implemented and work on the device (user, 2026-11-15). `plan.md` lists what is done and the open items.
 - Host unit tests for the LVGL-free `model_*` files: `tests/host/run.sh`.
 - Flash: the StampS3 is an ESP32-S3FN8 (8 MB flash, no PSRAM, per M5Stack's Dial docs); `esp32: flash_size: 8MB` gives two 3.75 MB OTA app slots. M7 uses 36.9 % of one. Check the size line of each compile.
 - The M5Stack Dial has a touchscreen (FT5x06 on I2C); it is part of the hardware and the UI input model.
