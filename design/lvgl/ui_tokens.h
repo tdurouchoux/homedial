@@ -54,7 +54,6 @@
 #define DIALED_ARC_SIZE     (DIALED_DISPLAY - 2 * DIALED_RING_INSET)   /* 232 */
 #define DIALED_ARC_ROTATION 135
 #define DIALED_ARC_SWEEP    270
-#define DIALED_RING_GAP     12   /* degrees between Room ring segments */
 #define DIALED_CONTENT_R    98
 #define DIALED_SAFE_BOX     160
 #define DIALED_ICON_S       16

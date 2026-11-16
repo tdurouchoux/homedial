@@ -94,24 +94,11 @@ static void test_room() {
   CHECK(!r.readings[0].history.has_data());
 }
 
-static void test_ring_segment() {
-  ArcSpan a = ring_segment(1, 0, 270, 12);
-  CHECK(a.start == 0 && a.sweep == 270);
-  a = ring_segment(2, 0, 270, 12);
-  ArcSpan b = ring_segment(2, 1, 270, 12);
-  CHECK(a.start == 0 && a.sweep == 129 && b.start == 141 && b.start + b.sweep == 270);
-  ArcSpan s0 = ring_segment(3, 0, 270, 12), s1 = ring_segment(3, 1, 270, 12), s2 = ring_segment(3, 2, 270, 12);
-  CHECK(s0.sweep == 82 && s1.start == 94 && s1.sweep == 82 && s2.start == 188 && s2.start + s2.sweep == 270);
-  ArcSpan l = ring_segment(4, 3, 270, 12);  // 58.5 -> 58, the last one takes the remainder
-  CHECK(l.start == 210 && l.start + l.sweep == 270);
-}
-
 int main() {
   test_status();
   test_ring();
   test_format();
   test_room();
-  test_ring_segment();
   if (failures == 0)
     std::printf("All model tests passed\n");
   return failures == 0 ? 0 : 1;

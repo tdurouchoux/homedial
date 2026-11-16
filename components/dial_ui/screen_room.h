@@ -1,9 +1,7 @@
 #pragma once
-// Room summary page (design/components/ScreenRoom): segmented ring (one segment per reading),
-// room name, 1-3 readings, page dots.
+// Room summary page (design/components/ScreenRoom): room name, 1-3 readings, page dots.
 
 #include "model_room.h"
-#include "widget_arc_gauge.h"
 #include "widget_common.h"
 #include "widget_location_label.h"
 #include "widget_page_dots.h"
@@ -34,7 +32,6 @@ class ScreenRoom {
     lv_obj_t *box{nullptr};    // clickable target (>= 82 x 58)
     lv_obj_t *label{nullptr};  // metric + unit
     lv_obj_t *value{nullptr};
-    ArcGauge segment;          // this reading's ring segment
   };
   lv_obj_t *screen_{nullptr};
   LocationLabel name_;

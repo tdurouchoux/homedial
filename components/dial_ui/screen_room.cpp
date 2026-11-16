@@ -43,12 +43,6 @@ void ScreenRoom::create(const Room &room) {
   const lv_font_t *value_font = DIALED_FONT_VALUE_M;
   layout(this->slot_count_, pos, &value_font);
 
-  // Ring segments first, so the reading targets stay on top for taps.
-  for (size_t i = 0; i < this->slot_count_; i++) {
-    ArcSpan span = ring_segment(this->slot_count_, i, DIALED_ARC_SWEEP, DIALED_RING_GAP);
-    this->slots_[i].segment.create(this->screen_, span.start, span.sweep);
-  }
-
   for (size_t i = 0; i < this->slot_count_; i++) {
     Slot &s = this->slots_[i];
     s.box = lv_obj_create(this->screen_);
@@ -80,7 +74,6 @@ void ScreenRoom::update_reading(const Room &room, size_t index, bool online) {
   Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
   lv_label_set_text(this->slots_[index].value, buf);
   lv_obj_set_style_text_color(this->slots_[index].value, value_color(st), LV_PART_MAIN);
-  this->slots_[index].segment.set(1.0f, st, false);  // whole segment in the state colour; empty offline
 }
 
 int ScreenRoom::slot_index(lv_obj_t *obj) const {
