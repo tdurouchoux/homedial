@@ -2,6 +2,7 @@
 // Rooms and their readings (contract.md §2). Pure C++, host-testable.
 
 #include <cmath>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,23 @@ struct Room {
     return -1;
   }
 };
+
+// Room page segmented ring (design ScreenRoom): the ring's `total` degrees split into `count` equal
+// segments, one per reading in reading order, `gap` degrees apart. Angles are relative to the ring's
+// start; integer degrees, the last segment ends exactly at `total`.
+struct ArcSpan {
+  int32_t start;
+  int32_t sweep;
+};
+inline ArcSpan ring_segment(size_t count, size_t i, int32_t total, int32_t gap) {
+  if (count <= 1)
+    return {0, total};
+  int32_t n = static_cast<int32_t>(count);
+  int32_t seg = (total - (n - 1) * gap) / n;
+  int32_t start = static_cast<int32_t>(i) * (seg + gap);
+  int32_t end = i + 1 == count ? total : start + seg;
+  return {start, end - start};
+}
 
 // "temperature" | "humidity" | "air_quality" -> Metric; false if unknown.
 inline bool parse_metric(const char *s, Metric *out) {

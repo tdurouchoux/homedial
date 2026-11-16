@@ -5,12 +5,12 @@ namespace esphome::dial_ui {
 static constexpr int32_t ARC_STEPS = 1000;
 static constexpr uint32_t ARC_ANIM_MS = 250;
 
-void ArcGauge::create(lv_obj_t *parent) {
+void ArcGauge::create(lv_obj_t *parent, int32_t start, int32_t sweep) {
   lv_obj_t *arc = lv_arc_create(parent);
   lv_obj_set_size(arc, DIALED_ARC_SIZE, DIALED_ARC_SIZE);
   lv_obj_center(arc);
   lv_arc_set_rotation(arc, DIALED_ARC_ROTATION);
-  lv_arc_set_bg_angles(arc, 0, DIALED_ARC_SWEEP);
+  lv_arc_set_bg_angles(arc, start, start + sweep);
   lv_arc_set_range(arc, 0, ARC_STEPS);
   lv_arc_set_value(arc, 0);
   lv_obj_remove_style(arc, nullptr, LV_PART_KNOB);
