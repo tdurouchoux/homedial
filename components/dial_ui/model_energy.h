@@ -87,6 +87,8 @@ class EnergyDay {
       this->base_ = end_state;
   }
 
+  double live() const { return this->live_; }
+  double base() const { return this->base_; }  // counter at the start of the open hour (NaN = unknown)
   bool has_clock() const { return this->open_hour_ >= 0; }
   size_t current_hour() const { return static_cast<size_t>(this->cur_hour_); }
 

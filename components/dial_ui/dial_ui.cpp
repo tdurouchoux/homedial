@@ -161,6 +161,8 @@ void DialUi::set_energy(sensor::Sensor *energy, const char *statistic_id) {
   this->energy_statistic_id_ = statistic_id;
   this->energy_.set_local_time(&local_time_);
   energy->add_on_state_callback([this](float x) {
+    if (std::isnan(this->energy_.live()))
+      ESP_LOGI(TAG, "Energy counter first value: %.3f", x);
     this->energy_.set_live(x);
     this->energy_dirty_ = true;
   });
@@ -266,9 +268,11 @@ void DialUi::load_energy(JsonVariantConst rows) {
     this->energy_.set_closed(row[0].as<int64_t>(), row[1].as<double>(), state);
     n++;
   }
-  ESP_LOGI(TAG, "Energy received from Home Assistant: %u hours", n);
+  ESP_LOGI(TAG, "Energy received from Home Assistant: %u hours; today so far %.2f kWh, counter %.3f, hour start %.3f",
+           n, this->energy_.today_total(), this->energy_.live(), this->energy_.base());
   if (n == 0)
-    ESP_LOGW(TAG, "No hourly statistics for '%s': it needs a state_class (total_increasing) and kWh as unit",
+    ESP_LOGW(TAG, "No hourly statistics for '%s': it needs a state_class (total_increasing) and kWh as unit. In HA "
+                  "Developer tools > Statistics, check that the entity is listed without an error",
              this->energy_statistic_id_.c_str());
   this->energy_dirty_ = true;
 }
