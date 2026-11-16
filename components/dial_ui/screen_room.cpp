@@ -80,7 +80,16 @@ void ScreenRoom::update_reading(const Room &room, size_t index, bool online) {
   Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
   lv_label_set_text(this->slots_[index].value, buf);
   lv_obj_set_style_text_color(this->slots_[index].value, value_color(st), LV_PART_MAIN);
-  this->slots_[index].segment.set(st);  // whole segment in the state colour; track when offline
+  this->slots_[index].segment.set(ring_fraction(r.value, r.thresholds), st, true);
+}
+
+void ScreenRoom::sweep(const Room &room, bool online) {
+  for (size_t i = 0; i < this->slot_count_; i++) {
+    const Reading &r = room.readings[i];
+    Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
+    this->slots_[i].segment.reset();
+    this->slots_[i].segment.set(ring_fraction(r.value, r.thresholds), st, true);
+  }
 }
 
 int ScreenRoom::slot_index(lv_obj_t *obj) const {
