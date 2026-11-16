@@ -17,6 +17,9 @@
 #define DIALED_OK         lv_color_hex(0x4D9FFF)
 #define DIALED_WARN       lv_color_hex(0xF2B134)
 #define DIALED_DANGER     lv_color_hex(0xFF6A55)
+#define DIALED_RAIN_1     lv_color_hex(0xA6D0FF)
+#define DIALED_RAIN_2     lv_color_hex(0x4F8FFF)
+#define DIALED_RAIN_3     lv_color_hex(0x2A55E8)
 #else
 #define DIALED_BG         lv_color_hex(0xF2F4F1)
 #define DIALED_SURFACE    lv_color_hex(0xE2E6E1)
@@ -30,6 +33,9 @@
 #define DIALED_OK         lv_color_hex(0x0A5FC4)
 #define DIALED_WARN       lv_color_hex(0x8A5A00)
 #define DIALED_DANGER     lv_color_hex(0xB3261E)
+#define DIALED_RAIN_1     lv_color_hex(0x7FB0EA)
+#define DIALED_RAIN_2     lv_color_hex(0x2F72D0)
+#define DIALED_RAIN_3     lv_color_hex(0x0D3A96)
 #endif
 
 /* Fonts (enable the matching LV_FONT_MONTSERRAT_x in lv_conf.h). */

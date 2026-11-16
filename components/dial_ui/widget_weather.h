@@ -1,6 +1,7 @@
 #pragma once
 // Weather widgets: WeatherIcon (design/components/WeatherIcon) and the next-hour rain arc
-// (spec.md "Weather": the ring is a 0 -> 60 min timeline, rainy stretches as `accent` segments).
+// (spec.md "Weather": the ring is a 0 -> 60 min timeline, rainy stretches as segments in the
+// `rain-1..3` blues by intensity).
 
 #include "model_weather.h"
 #include "widget_common.h"
@@ -36,7 +37,7 @@ inline lv_obj_t *create_weather_icon(lv_obj_t *parent) {
 
 class RainArc {
  public:
-  static constexpr size_t MAX_RUNS = 6;
+  static constexpr size_t MAX_RUNS = 9;  // Météo-France sends 9 slots: at most one run each
   void create(lv_obj_t *parent);
   // `available`: the next-hour rain forecast is known. Then the track is shown even when the
   // hour is dry (user, 2026-11-15; the design hid it); with no rain data there is no ring.

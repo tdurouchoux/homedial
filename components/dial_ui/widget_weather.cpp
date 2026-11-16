@@ -25,7 +25,6 @@ void RainArc::create(lv_obj_t *parent) {
   for (auto &r : this->runs_) {
     r = make_ring(parent);
     lv_obj_set_style_arc_opa(r, LV_OPA_TRANSP, LV_PART_MAIN);  // segment only: no own track
-    lv_obj_set_style_arc_color(r, DIALED_ACCENT, LV_PART_INDICATOR);
   }
 }
 
@@ -51,6 +50,9 @@ void RainArc::set(const RainRun *runs, size_t n, bool available) {
     if (a1 <= a0)
       a1 = a0 + 1;
     lv_arc_set_angles(arc, a0, a1);
+    lv_color_t c = runs[i].level == RAIN_LIGHT ? DIALED_RAIN_1 : (runs[i].level == RAIN_HEAVY ? DIALED_RAIN_3 : DIALED_RAIN_2);
+    if (!lv_color_eq(lv_obj_get_style_arc_color(arc, LV_PART_INDICATOR), c))  // restyle only on change
+      lv_obj_set_style_arc_color(arc, c, LV_PART_INDICATOR);
     lv_obj_remove_flag(arc, LV_OBJ_FLAG_HIDDEN);
   }
 }

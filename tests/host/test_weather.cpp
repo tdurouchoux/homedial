@@ -48,29 +48,37 @@ int main() {
       "{'0 min': 'Temps sec', '5 min': 'Temps sec', '10 min': 'Pluie faible', '15 min': 'Pluie mod\xC3\xA9r\xC3\xA9" "e', "
       "'20 min': 'Temps sec', '25 min': 'Temps sec', '30 min': 'Temps sec', '40 min': 'Pluie forte', '50 min': 'Temps sec'}";
   CHECK(parse_rain_slots(ATTR, &f) && f.count == 9);
-  CHECK(!f.slots[0].rainy && f.slots[2].rainy && f.slots[3].rainy && f.slots[7].rainy && !f.slots[8].rainy);
-  CHECK(parse_rain_slots("{\"0 min\": \"Pluie d'orage\", '5 min': 'Temps sec'}", &f) && f.slots[0].rainy);
+  CHECK(f.slots[0].level == RAIN_DRY && f.slots[2].level == RAIN_LIGHT && f.slots[3].level == RAIN_MODERATE &&
+        f.slots[7].level == RAIN_HEAVY && f.slots[8].level == RAIN_DRY);
+  CHECK(parse_rain_slots("{\"0 min\": \"Pluie d'orage\", '5 min': 'Temps sec'}", &f) &&
+        f.slots[0].level == RAIN_MODERATE);
   CHECK(!parse_rain_slots("unknown", &f) && !parse_rain_slots("{'x': 'y'}", &f) && !parse_rain_slots("{}", &f));
 
-  // Runs relative to now: rain 10-20 and 40-50 min after the reference.
+  // Runs relative to now, one per level: light 10-15, moderate 15-20, heavy 40-50 min.
   parse_rain_slots(ATTR, &f);
   f.ref_epoch = 1763200800;
   RainRun runs[8];
   size_t n = rain_runs(f, f.ref_epoch, runs, 8);
-  CHECK(n == 2 && near(runs[0].from_min, 10) && near(runs[0].to_min, 20) && near(runs[1].from_min, 40) &&
-        near(runs[1].to_min, 50));
+  CHECK(n == 3 && near(runs[0].from_min, 10) && near(runs[0].to_min, 15) && runs[0].level == RAIN_LIGHT &&
+        near(runs[1].from_min, 15) && near(runs[1].to_min, 20) && runs[1].level == RAIN_MODERATE &&
+        near(runs[2].from_min, 40) && near(runs[2].to_min, 50) && runs[2].level == RAIN_HEAVY);
   char line[24];
   rain_line(runs, n, line, sizeof line);
   CHECK(std::strcmp(line, "Rain in 10 min") == 0);
   // 12 minutes later the first run has started: "Rain now", shifted runs.
   n = rain_runs(f, f.ref_epoch + 12 * 60, runs, 8);
-  CHECK(n == 2 && near(runs[0].from_min, 0) && near(runs[0].to_min, 8));
+  CHECK(n == 3 && near(runs[0].from_min, 0) && near(runs[0].to_min, 3) && near(runs[1].to_min, 8));
   rain_line(runs, n, line, sizeof line);
   CHECK(std::strcmp(line, "Rain now") == 0);
   // An hour later everything is past: dry, no line.
   n = rain_runs(f, f.ref_epoch + 3600, runs, 8);
   rain_line(runs, n, line, sizeof line);
   CHECK(n == 0 && line[0] == '\0');
+  // Same-level neighbours merge into one run.
+  RainForecast g;
+  parse_rain_slots("{'0 min': 'Pluie faible', '5 min': 'Pluie faible', '10 min': 'Temps sec'}", &g);
+  g.ref_epoch = 0;
+  CHECK(rain_runs(g, 0, runs, 8) == 1 && near(runs[0].to_min, 10));
   // Not loaded yet.
   RainForecast empty;
   CHECK(rain_runs(empty, 0, runs, 8) == 0);

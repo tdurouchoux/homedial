@@ -90,9 +90,25 @@ inline bool parse_iso8601(const char *s, int64_t *epoch) {
 // ---- Météo-France next-hour rain (meteo_france/sensor.py, MeteoFranceRainSensor) ----
 
 // One slot of the `1_hour_forecast` attribute: {"0 min": "Temps sec", "5 min": "Pluie faible", ...}.
+// Rain levels: Météo-France's `rain` 1..4 ("Temps sec", "Pluie faible", "Pluie modérée",
+// "Pluie forte"; meteofrance-api tests/test_rain.py). HA's attribute only carries the text.
+enum RainLevel : uint8_t { RAIN_DRY = 0, RAIN_LIGHT = 1, RAIN_MODERATE = 2, RAIN_HEAVY = 3 };
+
+// Text -> level. Any other text that is not "Temps sec" counts as moderate rain.
+inline uint8_t rain_level(const std::string &text) {
+  if (text == "Temps sec")
+    return RAIN_DRY;
+  if (text == "Pluie faible")
+    return RAIN_LIGHT;
+  if (text == "Pluie forte")
+    return RAIN_HEAVY;
+  return RAIN_MODERATE;  // "Pluie modérée", or an unknown rain text
+}
+
 struct RainSlot {
   int16_t start_min;  // minutes after forecast_time_ref
-  bool rainy;
+  uint8_t level;      // RainLevel
+  bool rainy() const { return this->level != RAIN_DRY; }
 };
 
 struct RainForecast {
@@ -122,7 +138,7 @@ inline bool read_py_string_(const char *&p, std::string *out) {
 }
 
 // Parses the attribute as HA sends it: Python str() of a dict (contract.md §3.3).
-// A slot is dry when its text is exactly "Temps sec" (spec.md); anything else is rain.
+// A slot is dry when its text is exactly "Temps sec" (spec.md); the rain texts give the level.
 inline bool parse_rain_slots(const char *text, RainForecast *out) {
   out->count = 0;
   if (text == nullptr)
@@ -150,7 +166,7 @@ inline bool parse_rain_slots(const char *text, RainForecast *out) {
     if (std::sscanf(key.c_str(), "%d min", &minutes) != 1 || minutes < 0 || minutes >= RainForecast::HORIZON_MIN)
       return false;
     if (out->count < RainForecast::MAX_SLOTS)
-      out->slots[out->count++] = RainSlot{static_cast<int16_t>(minutes), value != "Temps sec"};
+      out->slots[out->count++] = RainSlot{static_cast<int16_t>(minutes), rain_level(value)};
   }
   // Slots are in time order in the attribute; keep them sorted anyway.
   for (size_t i = 1; i < out->count; i++)
@@ -162,10 +178,11 @@ inline bool parse_rain_slots(const char *text, RainForecast *out) {
   return out->count > 0;
 }
 
-// A rainy stretch on the 0..60 min timeline that starts now (arc segments).
+// A rainy stretch of one level on the 0..60 min timeline that starts now (arc segments).
 struct RainRun {
   float from_min;
   float to_min;
+  uint8_t level;  // RAIN_LIGHT..RAIN_HEAVY
 };
 
 // Rainy runs relative to `now`, clipped to the next 60 min. Returns how many were written.
@@ -176,7 +193,7 @@ inline size_t rain_runs(const RainForecast &f, int64_t now, RainRun *out, size_t
   float shift = static_cast<float>(now - f.ref_epoch) / 60.0f;  // minutes since the reference
   size_t n = 0;
   for (size_t i = 0; i < f.count; i++) {
-    if (!f.slots[i].rainy)
+    if (!f.slots[i].rainy())
       continue;
     float from = f.slots[i].start_min - shift;
     float end = (i + 1 < f.count ? f.slots[i + 1].start_min : RainForecast::HORIZON_MIN) - shift;
@@ -186,12 +203,12 @@ inline size_t rain_runs(const RainForecast &f, int64_t now, RainRun *out, size_t
       end = RainForecast::HORIZON_MIN;
     if (end <= from)
       continue;
-    if (n > 0 && out[n - 1].to_min >= from) {  // merge adjacent rainy slots
+    if (n > 0 && out[n - 1].to_min >= from && out[n - 1].level == f.slots[i].level) {  // merge same-level neighbours
       out[n - 1].to_min = end;
       continue;
     }
     if (n < max)
-      out[n++] = RainRun{from, end};
+      out[n++] = RainRun{from, end, f.slots[i].level};
   }
   return n;
 }
