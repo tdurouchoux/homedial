@@ -1,0 +1,6 @@
+copy_to_esphome.sh
+
+secrets.yaml
+.esphome/
+__pycache__/
+tests/host/build/

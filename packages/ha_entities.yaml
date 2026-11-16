@@ -1,0 +1,42 @@
+# Home Assistant entities read by the UI. PLACEHOLDER ids: replace with your own entities.
+sensor:
+  - platform: homeassistant
+    id: living_room_temperature
+    entity_id: sensor.livingroom_temperature
+  - platform: homeassistant
+    id: living_room_humidity
+    entity_id: sensor.livingroom_humidity
+  - platform: homeassistant
+    id: living_room_iaq
+    entity_id: sensor.livingroom_air_quality_index   # BME688 BSEC IAQ index (0 to 500)
+  # Kitchen: PLACEHOLDER ids, replace with your entities.
+  - platform: homeassistant
+    id: kitchen_temperature
+    entity_id: sensor.kitchen_temperature
+  - platform: homeassistant
+    id: kitchen_humidity
+    entity_id: sensor.kitchen_humidity
+
+# Météo-France (spec.md "Weather"). The entity ids are set once in homedial.yaml (substitutions).
+  - platform: homeassistant
+    id: outdoor_temperature
+    entity_id: ${weather_entity}
+    attribute: temperature
+
+# Electricity: live power in W. Entity id set in homedial.yaml (substitutions).
+  - platform: homeassistant
+    id: power_now
+    entity_id: ${power_entity}
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_condition
+    entity_id: ${weather_entity}
+  - platform: homeassistant
+    id: rain_next_hour
+    entity_id: ${next_rain_entity}
+    attribute: 1_hour_forecast
+  - platform: homeassistant
+    id: rain_next_hour_time
+    entity_id: ${next_rain_entity}
+    attribute: forecast_time_ref

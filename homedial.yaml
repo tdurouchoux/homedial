@@ -1,12 +1,39 @@
-# Board: M5Stack Dial
-# Definition: definitions/boards/m5stack_dial/manifest.yaml
+# M5Stack Dial: ESPHome + custom LVGL UI (dial_ui). See CLAUDE.md, spec.md, contract.md.
+
+substitutions:
+  # Météo-France entities in Home Assistant, used by packages/ha_entities.yaml (weather now,
+  # next-hour rain) and packages/ui.yaml (hourly forecast action). Set them once here.
+  weather_entity: weather.paris_11eme_arrondissement
+  next_rain_entity: sensor.paris_11eme_arrondissement_next_rain
+  # Live power in W (Electricity page). PLACEHOLDER: replace with your entity.
+  power_entity: sensor.linky_apparent_power
 
 esphome:
   name: homedial
   friendly_name: homedial
+  build_flags:
+    # LVGL features used only from dial_ui C++ (ESPHome sets unused LV_USE_* to 0, see contract.md §8).
+    - -DLV_USE_ARC=1
+    - -DLV_USE_LABEL=1
+    - -DLV_USE_FLEX=1
+    - -DLV_USE_CHART=1   # History TrendChart
+    - -DLV_USE_LINE=1    # dashed limit line on the chart
+    - -DLV_USE_IMAGE=1   # weather icons (A8 images)
+    # Stock Montserrat sizes used by the Dialed design (English UI, ASCII + degree sign + LV_SYMBOL_*).
+    # Size 14 is already enabled by ESPHome as the LVGL default font.
+    - -DLV_FONT_MONTSERRAT_12=1
+    - -DLV_FONT_MONTSERRAT_16=1
+    - -DLV_FONT_MONTSERRAT_20=1
+    - -DLV_FONT_MONTSERRAT_28=1
+    - -DLV_FONT_MONTSERRAT_40=1
+    - -DLV_FONT_MONTSERRAT_48=1
 
 esp32:
   variant: esp32s3
+  flash_mode: dio
+  # StampS3 = ESP32-S3FN8: 8 MB flash, no PSRAM (M5Stack Dial docs). Changing this changes the
+  # partition table: flash over USB once after changing it; OTA works again afterwards.
+  flash_size: 8MB
   framework:
     type: esp-idf
 
@@ -15,6 +42,7 @@ logger:
 api:
   encryption:
     key: !secret homedial__encryption_key
+
 ota:
   - platform: esphome
 
@@ -24,99 +52,16 @@ wifi:
   ap:
     ssid: homedial Fallback Hotspot
     password: !secret homedial__ap_password
+
 captive_portal:
 
-output:
-  - platform: ledc
-    id: backlight_output
-    pin: 9
-  - platform: ledc
-    id: buzzer
-    pin: 3
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [dial_ui]
 
-light:
-  - platform: monochromatic
-    name: Backlight
-    id: display_backlight
-    default_transition_length: 0s
-    output: backlight_output
-
-spi:
-  - id: spi_bus
-    clk_pin: 6
-    mosi_pin: 5
-
-i2c:
-  - id: internal_i2c
-    scl: 12
-    sda: 11
-
-binary_sensor:
-  - platform: gpio
-    name: Button
-    id: front_button
-    pin: 42
-    on_press:
-      then:
-        - light.toggle: display_backlight
-  - platform: gpio
-    name: Hold Button
-    id: binary_sensor_gpio_2
-    pin: 46
-
-sensor:
-  - platform: rotary_encoder
-    name: encoder
-    id: encoder
-    pin_a: 40
-    pin_b: 41
-  - platform: homeassistant
-    id: living_temp
-    entity_id: sensor.livingroom_temperature   # replace
-    on_value:
-      then:
-        - lvgl.arc.update:
-            id: temp_arc
-            value: !lambda "return x;"
-        - lvgl.label.update:
-            id: temp_label
-            text:
-              format: "%.1f°C"
-              args: ['x']
-          
-display:
-  - platform: ili9xxx
-    id: round_display
-    model: GC9A01A
-    cs_pin: GPIO7
-    dc_pin: GPIO4
-    reset_pin: GPIO8
-    invert_colors: true
-    update_interval: never
-    auto_clear_enabled: false
-
-lvgl:
-  buffer_size: 25%
-  bg_color: 0x000000
-  text_font: montserrat_28
-  pages:
-    - id: main_page
-      widgets:
-        - arc:
-            id: temp_arc
-            align: CENTER
-            width: 220
-            height: 220
-            min_value: 10
-            max_value: 30
-            value: 10
-            adjustable: false     # read-only, no touch knob
-            arc_width: 14
-            indicator:
-              arc_width: 14
-              arc_color: 0xFF8800
-        - label:
-            id: temp_label
-            align: CENTER
-            text: "--"
-    
+packages:
+  hardware: !include packages/hardware.yaml
+  ha_entities: !include packages/ha_entities.yaml
+  ui: !include packages/ui.yaml
