@@ -14,8 +14,6 @@ class ScreenRoom {
  public:
   void create(const Room &room);
   void update_reading(const Room &room, size_t index, bool online);
-  // Arrival: every ring segment sweeps from 0 to its reading (like the Sensor page ring).
-  void sweep(const Room &room, bool online);
   void set_dots(size_t count, size_t active) { this->dots_.set(count, active); }
   void animate_dots(size_t count, size_t from, size_t active) { this->dots_.animate(count, from, active); }
   // Arrival nudge: the room name and readings ease in from (dx, dy) px, 30 ms apart
@@ -36,7 +34,7 @@ class ScreenRoom {
     lv_obj_t *box{nullptr};    // clickable target (>= 82 x 58)
     lv_obj_t *label{nullptr};  // metric + unit
     lv_obj_t *value{nullptr};
-    ArcGauge segment;          // this reading's ring segment
+    RingSegment segment;       // this reading's ring segment
   };
   lv_obj_t *screen_{nullptr};
   LocationLabel name_;

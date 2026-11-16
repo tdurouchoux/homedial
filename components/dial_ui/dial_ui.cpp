@@ -512,7 +512,6 @@ void DialUi::show_(const Page &page, Slide slide) {
         scr.animate_dots(carousel_size(shape), carousel_index(prev, shape), page.room);
       else
         scr.set_dots(carousel_size(shape), page.room);
-      scr.sweep(this->rooms_[page.room], this->online_last_);
       scr.nudge(arrival_dx(slide, NUDGE_SIDE_PX), arrival_dy(slide, NUDGE_ROOM_PX));
       this->load_(scr.screen(), slide);
       break;
