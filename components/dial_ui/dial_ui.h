@@ -56,6 +56,18 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void load_forecast(JsonVariantConst rows);
   void forecast_request_failed(const std::string &error);
 
+  // History backfill (contract.md §5.2): HA entity id of the last added reading's sensor.
+  void set_statistic_id(const char *entity_id);
+  // YAML `on_history_request:` gets `ids` (comma-separated entity ids), runs recorder.get_statistics
+  // and hands the compacted rows back:
+  //   on_success: - lambda: id(ui).load_history(response["response"]);
+  Trigger<std::string> *get_history_request_trigger() {
+    this->has_history_request_ = true;
+    return &this->history_request_trigger_;
+  }
+  void load_history(JsonVariantConst series);
+  void history_request_failed(const std::string &error);
+
   // ---- Escape hatch for YAML lambdas: id(ui).set_reading("living", "temperature", x) ----
   void set_reading(const char *room_id, const char *metric, float value);
 
@@ -73,6 +85,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   int64_t now_epoch_() const;
   void refresh_weather_();
   void maybe_request_forecast_(bool force);
+  void maybe_request_history_();
+  void redraw_history_views_();
 
   // Settings
   void apply_luminosity_(int percent);
@@ -158,6 +172,12 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   bool forecast_pending_{false};
   uint32_t forecast_requested_ms_{0};
   Trigger<> forecast_request_trigger_;
+  // History backfill: once per connection, after the clock is set.
+  bool has_history_request_{false};
+  bool history_requested_{false};  // for this connection
+  bool history_pending_{false};
+  uint32_t history_requested_ms_{0};
+  Trigger<std::string> history_request_trigger_;
   std::vector<uint8_t> history_mask_;  // per room, bit i = reading i has history
   time::RealTimeClock *time_{nullptr};
   uint32_t last_sample_ms_{0};

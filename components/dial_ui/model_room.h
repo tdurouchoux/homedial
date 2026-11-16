@@ -18,6 +18,7 @@ struct Reading {
   bool dirty{true};  // set by inbound callbacks, cleared when the views are refreshed
   bool has_history{false};  // YAML `history: true`: sampled once a minute, History page
   HourlyHistory history;
+  std::string statistic_id;  // HA entity id for the history backfill (empty: none)
 };
 
 struct Room {

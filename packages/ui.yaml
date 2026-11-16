@@ -32,6 +32,32 @@ dial_ui:
         - metric: humidity
           sensor: kitchen_humidity
           history: true
+  # History backfill (contract.md §5.2): at boot and on each reconnect, the closed hours of the
+  # last 24 h come from HA's hourly statistics (sensors with a state_class). `ids` lists the
+  # history sensors' entity ids. Needs "Allow the device to perform Home Assistant actions".
+  on_history_request:
+    - homeassistant.action:
+        action: recorder.get_statistics
+        data:
+          period: hour
+          types: mean
+        variables:
+          ids: !lambda return ids;
+        data_template:
+          statistic_ids: "{{ ids.split(',') }}"
+          start_time: "{{ (now() - timedelta(hours=25)).isoformat() }}"
+        capture_response: true
+        # Compact the answer to [["sensor.x", [[hour_epoch, mean], ...]], ...].
+        response_template: >-
+          [{%- for id, rows in response.statistics.items() -%}
+          ["{{ id }}",[{%- for r in rows if r.mean is not none -%}
+          [{{ as_timestamp(r.start) | int }},{{ r.mean | round(2) }}]{{ ',' if not loop.last }}
+          {%- endfor -%}]]{{ ',' if not loop.last }}
+          {%- endfor -%}]
+        on_success:
+          - lambda: id(ui).load_history(response["response"]);
+        on_error:
+          - lambda: id(ui).history_request_failed(error);
   power:
     sensor: power_now
     contract_limit: 6000W   # 6 kVA contract (spec.md); WARN from 80 %, ALERT from 100 %

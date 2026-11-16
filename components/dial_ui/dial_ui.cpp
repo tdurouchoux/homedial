@@ -76,6 +76,12 @@ void DialUi::add_reading(Metric metric, sensor::Sensor *sensor, Thresholds thres
   }
 }
 
+void DialUi::set_statistic_id(const char *entity_id) {
+  if (this->rooms_.empty() || this->rooms_.back().readings.empty())
+    return;
+  this->rooms_.back().readings.back().statistic_id = entity_id;
+}
+
 void DialUi::set_reading(const char *room_id, const char *metric, float value) {
   Metric m;
   if (!parse_metric(metric, &m)) {
@@ -176,6 +182,79 @@ void DialUi::load_forecast(JsonVariantConst rows) {
 void DialUi::forecast_request_failed(const std::string &error) {
   this->forecast_pending_ = false;
   ESP_LOGW(TAG, "Forecast request failed: %s", error.c_str());
+}
+
+// History backfill (contract.md §5.2): `series` is [["sensor.x", [[hour_epoch, mean], ...]], ...].
+void DialUi::load_history(JsonVariantConst series) {
+  this->history_pending_ = false;
+  if (!series.is<JsonArrayConst>()) {
+    std::string raw;
+    serializeJson(series, raw);
+    ESP_LOGW(TAG, "History response is not a list; check the response_template (contract.md §5.2). Got: %.200s",
+             raw.c_str());
+    return;
+  }
+  int64_t now = this->now_epoch_();
+  if (now < 0)
+    return;
+  unsigned loaded = 0, hours = 0;
+  for (JsonVariantConst entry : series.as<JsonArrayConst>()) {
+    const char *id = entry[0].as<const char *>();
+    JsonArrayConst rows = entry[1].as<JsonArrayConst>();
+    if (id == nullptr || rows.isNull())
+      continue;
+    for (auto &room : this->rooms_) {
+      for (auto &r : room.readings) {
+        if (!r.has_history || r.statistic_id != id)
+          continue;
+        r.history.advance(now);  // the window must end at the current hour
+        for (JsonVariantConst row : rows) {
+          if (!row.is<JsonArrayConst>() || row.size() < 2 || row[1].isNull())
+            continue;
+          r.history.set_closed(row[0].as<int64_t>(), row[1].as<float>());
+          hours++;
+        }
+        loaded++;
+      }
+    }
+  }
+  ESP_LOGI(TAG, "History received from Home Assistant: %u series, %u hours", loaded, hours);
+  this->redraw_history_views_();
+}
+
+void DialUi::history_request_failed(const std::string &error) {
+  this->history_pending_ = false;
+  ESP_LOGW(TAG, "History request failed: %s", error.c_str());
+}
+
+void DialUi::redraw_history_views_() {
+  if (this->page_.kind == PageKind::HISTORY)
+    this->history_screen_.update(this->rooms_[this->page_.room], this->online_last_);
+  if (this->page_.kind == PageKind::SENSOR)
+    this->visible_sensor_()->update_trend(this->rooms_[this->page_.room]);
+}
+
+// Once per connection, as soon as the clock is set: closed hours from HA's statistics.
+void DialUi::maybe_request_history_() {
+  if (!this->has_history_request_ || !this->online_last_ || this->history_requested_)
+    return;
+  if (this->now_epoch_() < 0)
+    return;  // the window is placed by the clock
+  std::string ids;
+  for (const auto &room : this->rooms_)
+    for (const auto &r : room.readings)
+      if (r.has_history && !r.statistic_id.empty()) {
+        if (!ids.empty())
+          ids += ',';
+        ids += r.statistic_id;
+      }
+  this->history_requested_ = true;
+  if (ids.empty())
+    return;
+  this->history_pending_ = true;
+  this->history_requested_ms_ = millis();
+  ESP_LOGI(TAG, "Requesting 24 h of history (recorder.get_statistics) for %s", ids.c_str());
+  this->history_request_trigger_.trigger(ids);
 }
 
 int64_t DialUi::now_epoch_() const {
@@ -330,6 +409,8 @@ void DialUi::loop() {
     this->power_dirty_ = true;
     if (online)
       this->maybe_request_forecast_(true);  // on connect
+    else
+      this->history_requested_ = false;  // ask again on the next connection (fills the gap)
   }
   this->refresh_();
   if (this->has_power_ && this->power_dirty_) {  // power at 1 Hz (design)
@@ -337,6 +418,12 @@ void DialUi::loop() {
     this->power_screen_.update(this->power_w_, this->online_last_, this->page_.kind == PageKind::POWER);
   }
   this->maybe_request_forecast_(false);  // every 30 min
+  this->maybe_request_history_();
+  if (this->history_pending_ && now - this->history_requested_ms_ >= 30000) {
+    this->history_pending_ = false;  // no answer: HA did not run the action
+    ESP_LOGW(TAG, "No answer to the history request after 30 s. Check \"Allow the device to perform Home "
+                  "Assistant actions\" and the HA log for a rejected recorder.get_statistics call.");
+  }
   // The rain arc moves with the clock (past slots fall off): redraw once a minute too.
   uint32_t minute = now / 60000;
   if (this->weather_dirty_ || minute != this->last_rain_minute_) {
@@ -369,10 +456,7 @@ void DialUi::sample_history_() {
         r.history.advance(epoch);
     }
   }
-  if (this->page_.kind == PageKind::HISTORY)
-    this->history_screen_.update(this->rooms_[this->page_.room], online);
-  if (this->page_.kind == PageKind::SENSOR)
-    this->visible_sensor_()->update_trend(this->rooms_[this->page_.room]);
+  this->redraw_history_views_();
 }
 
 void DialUi::refresh_() {

@@ -91,7 +91,7 @@ See `contract.md` for the ESPHome <-> UI contract.
   | Air quality (BSEC IAQ) | 0 to 500 | 101 to 200 | above 200 |
 
   The cold-side temperature limits (18 / 16) were proposed and not contested; adjust them in YAML if needed.
-- **History** is recorded on the device only, in RAM, as hourly means over the last 24 h. It starts empty after a reboot or update and fills over 24 h; hours without data show as gaps. No history is fetched from Home Assistant.
+- **History** is kept on the device, in RAM, as hourly means over the last 24 h. At boot and on each reconnect the closed hours are filled from Home Assistant's hourly statistics (decided 2026-11-16; only sensors with a `state_class` have them), so it is full right after a reboot or update; otherwise it fills over 24 h. Hours without data show as gaps.
 
 ## Room icons
 

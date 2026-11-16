@@ -90,7 +90,7 @@ A value that does not change is never resent, so a timeout per sensor would wron
 
 Only series with `history: true` keep history (the spec's History pages: room metrics). Power has none for now (Energy page dropped).
 
-Decided by the user (2026-11-15): **device-only, RAM only, hourly over 24 h.** No backfill from Home Assistant, nothing written to flash. After a reboot or OTA the chart starts empty and fills over 24 h.
+Decided by the user (2026-11-15): **RAM only, hourly over 24 h**, nothing written to flash. Updated 2026-11-16: the closed hours are **backfilled from Home Assistant's hourly statistics** at boot and on each reconnect (§5.2), so the chart is full right after a reboot or OTA for sensors HA keeps statistics for.
 
 ### 5.1 Model
 
@@ -101,9 +101,13 @@ Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the cu
 - Wall clock: `time: - platform: homeassistant` (`homeassistant/time/`). Until the time is valid nothing is recorded. **[decide later]** the PCF8563 RTC could provide time before HA connects (CLAUDE.md open question on RTC); not needed for this contract.
 - Because HA only sends on change, a stable sensor yields few callbacks. The component therefore samples the current value of each history series once a minute into the open bucket, so a flat hour still gets a mean. This reads the value already in memory; it is not a request to HA. While HA is disconnected, or the value is `NaN`, no sample is added.
 
-### 5.2 Not used: backfill from HA
+### 5.2 Backfill from HA
 
-Checked and possible (`recorder.get_statistics` through `homeassistant.action` with `capture_response`), but not wanted. If it is ever added, it plugs in as a request trigger + `load_history()` without changing the model above.
+- **When:** once per HA connection (at boot and after each reconnect, which also fills a gap), as soon as the clock is set. One request at a time; no answer within 30 s is logged.
+- **Ids:** for each `history: true` metric, the component uses the sensor's `entity_id` when it is a `homeassistant` sensor without `attribute:` (found in the validated config at codegen), or the metric's `statistic_id:` option. Metrics without one are left out (warning at compile).
+- **Trigger:** `on_history_request:` in the `dial_ui:` block gets `ids` (`std::string`, comma-separated). The YAML (`packages/ui.yaml`) runs `recorder.get_statistics` with `period: hour`, `types: mean`, `statistic_ids` rendered from `ids` and `start_time` 25 h ago, with `capture_response`. Its `response_template` compacts the answer to `[["sensor.x", [[hour_epoch, mean], ...]], ...]` (about 0.5 KB per series); `on_success` calls `id(ui).load_history(response["response"])`, `on_error` calls `id(ui).history_request_failed(error)`.
+- **HA side (checked in HA core, `recorder/services.py`, `helpers/service.py`, `esphome/manager.py`):** `recorder.get_statistics` is an admin service with `supports_response: only`, returning `{"statistics": {"<id>": [{"start", "end", "mean"}, ...]}}` with ISO `start`. The admin check only applies to calls with a user; ESPHome device calls carry none. It needs "Allow the device to perform Home Assistant actions". Only entities with a `state_class` have statistics; others are simply absent from the answer. HA compiles an hour's statistics shortly after the hour ends, so the latest closed hour may still be the device's own.
+- **Merge (`HourlyHistory::set_closed`):** HA's mean replaces the device's for closed hours inside the 24 h window (HA's covers the whole hour; the device's may be partial after a reboot). The open hour stays the device's own minute samples.
 
 ## 6. Weather
 

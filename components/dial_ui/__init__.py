@@ -3,6 +3,7 @@
 See CLAUDE.md (architecture), spec.md (screens) and contract.md (data contract).
 """
 
+import logging
 import math
 from pathlib import Path
 
@@ -40,6 +41,8 @@ CONF_CONDITION = "condition"
 CONF_RAIN_FORECAST = "rain_forecast"
 CONF_RAIN_FORECAST_TIME = "rain_forecast_time"
 CONF_ON_FORECAST_REQUEST = "on_forecast_request"
+CONF_ON_HISTORY_REQUEST = "on_history_request"
+CONF_STATISTIC_ID = "statistic_id"
 CONF_POWER = "power"
 CONF_BACKLIGHT = "backlight"
 CONF_BUZZER = "buzzer"
@@ -96,6 +99,9 @@ READING_SCHEMA = cv.Schema(
         cv.Required(CONF_SENSOR): cv.use_id(sensor.Sensor),
         # Keep 24 h of hourly means in RAM and give the reading a History page (needs time_id).
         cv.Optional(CONF_HISTORY, default=False): cv.boolean,
+        # HA statistic id for the history backfill; default: the sensor's entity_id when it is a
+        # `homeassistant` sensor without `attribute:` (contract.md §5.2).
+        cv.Optional(CONF_STATISTIC_ID): cv.string,
         cv.Optional(CONF_THRESHOLDS, default={}): THRESHOLDS_SCHEMA,
     }
 )
@@ -179,6 +185,22 @@ def _validate_carousel(config):
     return config
 
 
+_LOGGER = logging.getLogger(__name__)
+
+
+def _statistic_id(reading):
+    """Entity id of a history reading's sensor, for recorder.get_statistics, or None."""
+    if CONF_STATISTIC_ID in reading:
+        return reading[CONF_STATISTIC_ID]
+    sensor_id = reading[CONF_SENSOR].id
+    for conf in CORE.config.get("sensor", []):
+        if conf.get(CONF_ID) is not None and conf[CONF_ID].id == sensor_id:
+            if conf.get("platform") == "homeassistant" and "attribute" not in conf:
+                return conf.get("entity_id")
+            return None
+    return None
+
+
 def _validate_history_needs_time(config):
     uses_history = any(m[CONF_HISTORY] for r in config[CONF_ROOMS] for m in r[CONF_METRICS])
     if uses_history and CONF_TIME_ID not in config:
@@ -201,6 +223,9 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ROOMS, default=[]): cv.All(cv.ensure_list(ROOM_SCHEMA), _validate_rooms),
         cv.Optional(CONF_WEATHER): WEATHER_SCHEMA,
         cv.Optional(CONF_POWER): POWER_SCHEMA,
+        # History backfill (contract.md §5.2): gets `ids` (comma-separated entity ids), runs
+        # recorder.get_statistics; on_success hands the rows to id(ui).load_history().
+        cv.Optional(CONF_ON_HISTORY_REQUEST): automation.validate_automation(single=True),
         # Settings targets (spec.md "Settings list"): luminosity, encoder tick, Power off.
         cv.Optional(CONF_BACKLIGHT): cv.use_id(light.LightState),
         cv.Optional(CONF_BUZZER): cv.use_id(output.FloatOutput),
@@ -249,6 +274,19 @@ async def to_code(config):
             sens = await cg.get_variable(reading[CONF_SENSOR])
             thresholds = cg.StructInitializer(Thresholds, *[(k, _float_expr(t[k])) for k in THRESHOLD_KEYS])
             cg.add(var.add_reading(METRICS[metric], sens, thresholds, reading[CONF_HISTORY]))
+            if reading[CONF_HISTORY] and CONF_ON_HISTORY_REQUEST in config:
+                if stat_id := _statistic_id(reading):
+                    cg.add(var.set_statistic_id(stat_id))
+                else:
+                    _LOGGER.warning(
+                        "dial_ui: room '%s' %s has no HA statistic id (not a homeassistant sensor "
+                        "without attribute): set statistic_id: to backfill its history",
+                        room[CONF_ID],
+                        metric,
+                    )
+
+    if on_history := config.get(CONF_ON_HISTORY_REQUEST):
+        await automation.build_automation(var.get_history_request_trigger(), [(cg.std_string, "ids")], on_history)
 
     if weather := config.get(CONF_WEATHER):
         temp = await cg.get_variable(weather[CONF_TEMPERATURE])

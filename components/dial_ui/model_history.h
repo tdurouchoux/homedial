@@ -47,6 +47,19 @@ class HourlyHistory {
     this->open_hour_ = h;
   }
 
+  // Sets the closed hour that starts at `hour_epoch` to `mean` (backfill from Home Assistant's
+  // hourly statistics, contract.md §5.2). HA's mean covers the whole hour, so it replaces the
+  // device's own (possibly partial) one. Ignored before the clock is known, for the open hour,
+  // outside the 24 h window, and for NaN.
+  void set_closed(int64_t hour_epoch, float mean) {
+    if (this->open_hour_ < 0 || std::isnan(mean) || hour_epoch < 0)
+      return;
+    int64_t back = this->open_hour_ - hour_epoch / 3600;  // 1 = the last closed hour
+    if (back < 1 || back > static_cast<int64_t>(CLOSED))
+      return;
+    this->closed_[CLOSED - static_cast<size_t>(back)] = mean;
+  }
+
   // Point i, oldest (0, 24 h ago) to newest (POINTS - 1, the current hour so far). NaN = missing.
   float point(size_t i) const {
     if (i >= POINTS)

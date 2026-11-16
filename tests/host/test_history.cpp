@@ -21,6 +21,24 @@ static bool near(float a, float b) { return std::fabs(a - b) < 1e-4f; }
 int main() {
   const size_t NOW = HourlyHistory::POINTS - 1;
 
+  {  // Backfill: closed hours only, inside the window; replaces the device's partial mean.
+    HourlyHistory h;
+    h.set_closed(T0, 5.0f);  // clock not known yet: ignored
+    CHECK(!h.has_data());
+    h.add(T0 + 2 * 3600 + 60, 22.0f);   // open hour = T0 + 2 h
+    h.set_closed(T0 + 3600, 21.0f);     // last closed hour
+    h.set_closed(T0, 20.0f);            // the one before
+    h.set_closed(T0 + 2 * 3600, 99.0f); // open hour: ignored
+    h.set_closed(T0 - 24 * 3600, 99.0f);  // 26 h back: outside the window
+    h.set_closed(T0 - 3600, NAN);       // NaN: ignored
+    CHECK(near(h.point(NOW), 22.0f));
+    CHECK(near(h.point(NOW - 1), 21.0f));
+    CHECK(near(h.point(NOW - 2), 20.0f));
+    CHECK(std::isnan(h.point(NOW - 3)));
+    h.set_closed(T0 - 22 * 3600, 18.0f);  // 24 h back: the oldest point
+    CHECK(near(h.point(0), 18.0f));
+  }
+
   {  // Sparkline range: needs 2 points; padded 15 %; never flatter than min_span.
     HourlyHistory h;
     float lo = 0, hi = 0;
