@@ -79,11 +79,13 @@ dial_ui:
               # Today 00:00 local is at most 24 h (+1 h on a DST day) before now.
               start_time: "{{ (now() - timedelta(hours=26)).isoformat() }}"
             capture_response: true
-            # Compact the answer to [[hour_epoch, change_kwh, end_counter_or_null], ...].
+            # Compact the answer to [[hour_epoch, change_kwh, end_counter_or_null], ...]. HA leaves a key
+            # out of a row when it is None (recorder/services.py), hence .get(): a counter without
+            # sum/state statistics (no state_class total_increasing) gives [] instead of a template error.
             response_template: >-
               [{%- for rows in response.statistics.values() -%}
-              {%- for r in rows if r.change is not none -%}
-              [{{ as_timestamp(r.start) | int }},{{ r.change | round(3) }},{{ r.state | round(3) if r.state is not none else 'null' }}]{{ ',' if not loop.last }}
+              {%- for r in rows if r.get('change') is not none -%}
+              [{{ as_timestamp(r.start) | int }},{{ r.change | round(3) }},{{ r.state | round(3) if r.get('state') is not none else 'null' }}]{{ ',' if not loop.last }}
               {%- endfor -%}
               {%- endfor -%}]
             on_success:

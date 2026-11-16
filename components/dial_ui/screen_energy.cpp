@@ -37,8 +37,12 @@ void ScreenEnergy::update(const EnergyDay &day, bool online) {
   char text[32];
   float total = online ? day.today_total() : NAN;
   format_kwh(total, buf, sizeof(buf));
-  snprintf(text, sizeof(text), "%s kWh", buf);
-  lv_label_set_text(this->total_, text);
+  if (std::isnan(total)) {
+    lv_label_set_text(this->total_, buf);  // "--" alone, like any missing value
+  } else {
+    snprintf(text, sizeof(text), "%s kWh", buf);
+    lv_label_set_text(this->total_, text);
+  }
 }
 
 }  // namespace esphome::dial_ui
