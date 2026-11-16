@@ -8,14 +8,15 @@ Product decisions for the Dial UI. Look and feel, components and the input vocab
 | --- | --- | --- | --- |
 | 0 | Room summary (one per room) | ScreenRoom | 1 to 3 readings |
 | 0 | Weather now | ScreenWeather | rain arc = next 60 min |
-| 0 | Electricity | ScreenPower | live power, no children |
+| 0 | Electricity | ScreenPower | live power |
+| 1 | Energy today | ScreenEnergy | child of Electricity; hourly kWh bars; only when `power: energy:` is configured |
 | 1 | Sensor (one per metric of a room) | ScreenSensor | Temperature, Humidity, Air quality, each only if the room has the sensor |
 | 2 | History (one per metric of a room) | ScreenHistory | scrub |
 | 2 | Hourly forecast | ScreenForecast (hourly strip) | opened from Weather now |
 | S | Settings list | ListMenu | not in the carousel |
 | S+1 | Adjust luminosity, Adjust buzzer volume | ScreenAdjust | opened from Settings |
 
-Dropped for now: Energy history (it would need on-device data storage); it may return later.
+Energy history returned on 2026-11-16 as the child page of Electricity ("Energy today"): the hourly figures come from Home Assistant's statistics, so the device stores nothing (see "Energy" below).
 
 ## Navigation graph
 
@@ -26,7 +27,7 @@ Carousel (level 0, turn / swipe left-right, no wrap, boots on the first room):
 Room summary  --press / swipe up / tap a reading-->  Sensor pages (turn / swipe between metrics)
 Sensor page   --press / swipe up-->                  History of that metric in that room
 Weather now   --press / swipe up-->                  Hourly forecast
-Electricity                                          (no children)
+Electricity   --press / swipe up-->                  Energy today (only if configured)
 
 Settings (above the carousel):
   opened from level 0 by long press / touch hold / swipe down; closed by swipe up / long press
@@ -41,6 +42,7 @@ Settings (above the carousel):
 - **Back** (encoder long press 600 ms, swipe down): up one level. From an editor or a scrub it cancels.
 - **Leaving Settings** (decided 2026-11-15): Settings opens with a downward slide from above the carousel, so it closes with **swipe up** (the slide goes back up) or an encoder long press, and returns to the page you left. Swipe down does nothing on Settings. This differs from `design/README.md`, where swipe down is always back.
 - **Settings**: from level 0, the back gesture (long press, swipe down) or a 600 ms touch hold opens the Settings list.
+- **Energy today** (level 1, no dots): turn and swipe left/right do nothing; back (long press, swipe down) returns to Electricity.
 - **Level 2 interaction pages** (History, Hourly forecast, Adjust): turn and swipe act only inside the page and never change page.
   - History: press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on the chart, then drag.
   - Hourly forecast: turn moves the focus one hour; drag scrolls and snaps; tap centres a column. Encoder steps and taps scroll the strip smoothly (decided after testing: an instant jump was hard to follow).
@@ -72,7 +74,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Pitch, Screen off
 
 ## Design alignment
 
-`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy marked as a future page, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
+`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy as a child of Electricity, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed (the Energy delta compares the same hours, see "Energy").
 
 ## Iteration scope
 
@@ -101,7 +103,19 @@ Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyph
 
 - Contract limit **6 kVA (6000 W)** (decided 2026-11-15), set as `power: contract_limit` in `packages/ui.yaml`. Ring 0 to the limit; WARN from 80 %, ALERT from 100 % (ring full).
 - Live power entity: `power_entity` substitution in `homedial.yaml` (placeholder until set). Shown in W up to 9999, then kW with one decimal.
+- Energy today is a child of Electricity, not a carousel page, so it does not count toward the 7.
 - The carousel holds at most 7 pages (rooms + Weather now + Electricity), the most the page dots fit: up to 5 rooms. `esphome config` rejects more.
+
+## Energy
+
+Decided 2026-11-16 (the earlier blocker, on-device storage, went away with the History backfill from HA statistics):
+- **Page**: child of Electricity (press / swipe up), no page dots, back returns. Shown only when `power: energy:` is set in `packages/ui.yaml`.
+- **Content** (design ScreenEnergy): "Today", today's total in kWh (one decimal up to 99.9, then whole kWh), 24 hourly bars (BarChart), "00h" / "24h" axis ends, and the change against yesterday. No cost, no limit line (bars are never `warn`).
+- **Window**: the local calendar day 00h to 24h. Past hours `line`, the current hour `accent`, hours not reached (or without data) 2 px `track` stubs. The axis maximum is the smallest of 1, 1.5, 2, 3, 4, 5, 6, 8 (times a power of ten) that holds the tallest bar, never below 1 kWh.
+- **Delta** (differs from design, which says yesterday's total): today's *closed* hours against the *same hours* of yesterday, so it is meaningful at 09:00 too. Shown as an arrow glyph plus signed percentage ("-12% vs yday"), in `ink`. Hidden until one hour has closed, when an hour is missing on either day, or when yesterday used no energy.
+- **Source**: one cumulative kWh counter (`energy_entity` in `homedial.yaml`, state_class `total_increasing`). Closed hours are HA's hourly `change`; the open hour is the live counter minus its value at the start of the hour. Details and the request in `contract.md` §5.3.
+- **Offline**: the total reads "--" and the delta is hidden; the bars keep the hours already known.
+- Hours are indexed by the local hour, so a DST day (23 or 25 hours) has one bar too few or the repeated hour overwritten; accepted.
 
 ## Room metrics
 

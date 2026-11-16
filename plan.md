@@ -15,9 +15,11 @@ the data contract in `contract.md`, and conventions in `CLAUDE.md`.
 | M6 | Electricity (live power ring to the 6 kVA contract limit) |
 | M7 | Settings: luminosity, buzzer volume and pitch, screen off, power off |
 | M8 | Dim after 30 s, screen off after 60 s, wake on any input |
+| M9 | Energy today: hourly kWh bars from HA statistics, child of Electricity (2026-11-16; compile only, not yet checked on the device) |
 | Extra | Room icons, `flash_size: 8MB` |
 
 ## Open items
+- Energy today: set `energy_entity` in `homedial.yaml` (placeholder), run the template in HA Developer tools > Actions, check on the device.
 - History: full check over a day of uptime.
 - Weather city on the Forecast title (not shown).
 - RTC (PCF8563) as a time source before Home Assistant connects.

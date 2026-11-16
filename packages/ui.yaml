@@ -61,6 +61,35 @@ dial_ui:
   power:
     sensor: power_now
     contract_limit: 6000W   # 6 kVA contract (spec.md); WARN from 80 %, ALERT from 100 %
+    # Energy today: child page of Electricity (press / swipe up). Hourly kWh bars from HA's
+    # statistics of the cumulative counter (kWh, state_class total_increasing). Fetched at
+    # connect and once an hour. Needs "Allow the device to perform Home Assistant actions".
+    energy:
+      sensor: energy_total
+      on_request:
+        - homeassistant.action:
+            action: recorder.get_statistics
+            data:
+              period: hour
+            variables:
+              ids: !lambda return ids;
+            data_template:
+              types: "{{ ['change', 'state'] }}"
+              statistic_ids: "{{ ids.split(',') }}"
+              # Yesterday 00:00 is at most 48 h (+1 h on a DST day) before now.
+              start_time: "{{ (now() - timedelta(hours=50)).isoformat() }}"
+            capture_response: true
+            # Compact the answer to [[hour_epoch, change_kwh, end_counter_or_null], ...].
+            response_template: >-
+              [{%- for rows in response.statistics.values() -%}
+              {%- for r in rows if r.change is not none -%}
+              [{{ as_timestamp(r.start) | int }},{{ r.change | round(3) }},{{ r.state | round(3) if r.state is not none else 'null' }}]{{ ',' if not loop.last }}
+              {%- endfor -%}
+              {%- endfor -%}]
+            on_success:
+              - lambda: id(ui).load_energy(response["response"]);
+            on_error:
+              - lambda: id(ui).energy_request_failed(error);
   weather:
     temperature: outdoor_temperature
     condition: weather_condition

@@ -2,6 +2,7 @@
 
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#include "esphome/core/time.h"
 #ifdef USE_API
 #include "esphome/components/api/api_server.h"
 #endif
@@ -149,6 +150,22 @@ void DialUi::set_power(sensor::Sensor *power, float limit_w) {
   });
 }
 
+// Local calendar day and hour of an epoch, for the Energy day (ESPHome applies the timezone).
+static LocalTime local_time_(int64_t epoch) {
+  ESPTime t = ESPTime::from_epoch_local(static_cast<time_t>(epoch));
+  return LocalTime{days_from_civil(t.year, t.month, t.day_of_month), t.hour};
+}
+
+void DialUi::set_energy(sensor::Sensor *energy, const char *statistic_id) {
+  this->has_energy_ = true;
+  this->energy_statistic_id_ = statistic_id;
+  this->energy_.set_local_time(&local_time_);
+  energy->add_on_state_callback([this](float x) {
+    this->energy_.set_live(x);
+    this->energy_dirty_ = true;
+  });
+}
+
 void DialUi::load_forecast(JsonVariantConst rows) {
   this->forecast_pending_ = false;
   if (!rows.is<JsonArrayConst>()) {
@@ -225,6 +242,80 @@ void DialUi::load_history(JsonVariantConst series) {
 void DialUi::history_request_failed(const std::string &error) {
   this->history_pending_ = false;
   ESP_LOGW(TAG, "History request failed: %s", error.c_str());
+}
+
+// Energy backfill (contract.md §5.3): `rows` is [[hour_epoch, change_kwh, end_counter_or_null], ...].
+void DialUi::load_energy(JsonVariantConst rows) {
+  this->energy_pending_ = false;
+  if (!rows.is<JsonArrayConst>()) {
+    std::string raw;
+    serializeJson(rows, raw);
+    ESP_LOGW(TAG, "Energy response is not a list; check the response_template (contract.md §5.3). Got: %.200s",
+             raw.c_str());
+    return;
+  }
+  int64_t now = this->now_epoch_();
+  if (now < 0)
+    return;
+  this->energy_.advance(now);  // the day must end at the current hour
+  unsigned n = 0;
+  for (JsonVariantConst row : rows.as<JsonArrayConst>()) {
+    if (!row.is<JsonArrayConst>() || row.size() < 2 || row[1].isNull())
+      continue;
+    double state = row.size() > 2 && !row[2].isNull() ? row[2].as<double>() : static_cast<double>(NAN);
+    this->energy_.set_closed(row[0].as<int64_t>(), row[1].as<double>(), state);
+    n++;
+  }
+  ESP_LOGI(TAG, "Energy received from Home Assistant: %u hours", n);
+  if (n == 0)
+    ESP_LOGW(TAG, "No hourly statistics for '%s': it needs a state_class (total_increasing) and kWh as unit",
+             this->energy_statistic_id_.c_str());
+  this->energy_dirty_ = true;
+}
+
+void DialUi::energy_request_failed(const std::string &error) {
+  this->energy_pending_ = false;
+  ESP_LOGW(TAG, "Energy request failed: %s", error.c_str());
+}
+
+// Once per connection, then once an hour after HA has compiled the previous hour's statistics
+// (it does so a few minutes past the hour; a request before that is repeated at minute 6).
+void DialUi::maybe_request_energy_() {
+  if (!this->has_energy_request_ || !this->online_last_ || this->energy_statistic_id_.empty())
+    return;
+  int64_t now = this->now_epoch_();
+  if (now < 0)
+    return;
+  uint32_t ms = millis();
+  if (this->energy_pending_) {
+    if (ms - this->energy_requested_ms_ < 30000)
+      return;
+    this->energy_pending_ = false;  // no answer: HA did not run the action
+    ESP_LOGW(TAG, "No answer to the energy request after 30 s. Check \"Allow the device to perform Home "
+                  "Assistant actions\" and the HA log for a rejected recorder.get_statistics call.");
+  }
+  int64_t hour = now / 3600;
+  bool late = now % 3600 >= 6 * 60;
+  bool first = this->energy_req_hour_ < 0;
+  bool due = hour != this->energy_req_hour_ ? (first || late) : (late && !this->energy_req_late_);
+  if (!due)
+    return;
+  this->energy_req_hour_ = hour;
+  this->energy_req_late_ = late;
+  this->energy_pending_ = true;
+  this->energy_requested_ms_ = ms;
+  ESP_LOGI(TAG, "Requesting hourly energy (recorder.get_statistics) for %s", this->energy_statistic_id_.c_str());
+  this->energy_request_trigger_.trigger(this->energy_statistic_id_);
+}
+
+void DialUi::refresh_energy_() {
+  int64_t now = this->now_epoch_();
+  if (now >= 0 && this->energy_.advance(now))
+    this->energy_dirty_ = true;  // the hour (or day) rolled over
+  if (this->energy_dirty_ && this->page_.kind == PageKind::ENERGY) {
+    this->energy_dirty_ = false;
+    this->energy_screen_.update(this->energy_, this->online_last_);
+  }
 }
 
 void DialUi::redraw_history_views_() {
@@ -375,6 +466,10 @@ void DialUi::setup() {
   if (this->has_power_) {
     this->power_screen_.create(this->power_limit_w_);
     this->attach_events_(this->power_screen_.screen());
+    if (this->has_energy_) {
+      this->energy_screen_.create();
+      this->attach_events_(this->energy_screen_.screen());
+    }
   }
 
   this->hold_timer_ = lv_timer_create(&DialUi::hold_timer_cb_, SETTINGS_HOLD_MS, this);
@@ -407,10 +502,13 @@ void DialUi::loop() {
         r.dirty = true;
     this->weather_dirty_ = true;
     this->power_dirty_ = true;
-    if (online)
+    this->energy_dirty_ = true;
+    if (online) {
       this->maybe_request_forecast_(true);  // on connect
-    else
+    } else {
       this->history_requested_ = false;  // ask again on the next connection (fills the gap)
+      this->energy_req_hour_ = -1;
+    }
   }
   this->refresh_();
   if (this->has_power_ && this->power_dirty_) {  // power at 1 Hz (design)
@@ -419,6 +517,10 @@ void DialUi::loop() {
   }
   this->maybe_request_forecast_(false);  // every 30 min
   this->maybe_request_history_();
+  if (this->has_energy_) {
+    this->refresh_energy_();
+    this->maybe_request_energy_();
+  }
   if (this->history_pending_ && now - this->history_requested_ms_ >= 30000) {
     this->history_pending_ = false;  // no answer: HA did not run the action
     ESP_LOGW(TAG, "No answer to the history request after 30 s. Check \"Allow the device to perform Home "
@@ -483,6 +585,7 @@ NavShape DialUi::shape_() const {
   NavShape s{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
   s.has_weather = this->has_weather_;
   s.has_power = this->has_power_;
+  s.has_energy = this->has_energy_;
   return s;
 }
 
@@ -557,6 +660,12 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->load_(this->power_screen_.screen(), slide);
       break;
     }
+    case PageKind::ENERGY:
+      this->energy_screen_.update(this->energy_, this->online_last_);
+      this->energy_dirty_ = false;
+      this->energy_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->energy_screen_.screen(), slide);
+      break;
     case PageKind::FORECAST: {
       this->maybe_request_forecast_(false);  // refresh if older than 30 min
       int64_t now = this->now_epoch_();

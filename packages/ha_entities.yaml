@@ -28,6 +28,11 @@ sensor:
     id: power_now
     entity_id: ${power_entity}
 
+# Energy today: cumulative counter in kWh (state_class total_increasing). Entity id set in homedial.yaml.
+  - platform: homeassistant
+    id: energy_total
+    entity_id: ${energy_entity}
+
 text_sensor:
   - platform: homeassistant
     id: weather_condition

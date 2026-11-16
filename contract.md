@@ -88,7 +88,7 @@ A value that does not change is never resent, so a timeout per sensor would wron
 
 ## 5. History
 
-Only series with `history: true` keep history (the spec's History pages: room metrics). Power has none for now (Energy page dropped).
+Only series with `history: true` keep history (the spec's History pages: room metrics). Live power has none; Energy today has its own day model (§5.3).
 
 Decided by the user (2026-11-15): **RAM only, hourly over 24 h**, nothing written to flash. Updated 2026-11-16: the closed hours are **backfilled from Home Assistant's hourly statistics** at boot and on each reconnect (§5.2), so the chart is full right after a reboot or OTA for sensors HA keeps statistics for.
 
@@ -108,6 +108,16 @@ Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the cu
 - **Trigger:** `on_history_request:` in the `dial_ui:` block gets `ids` (`std::string`, comma-separated). The YAML (`packages/ui.yaml`) runs `recorder.get_statistics` with `period: hour`, `types: mean`, `statistic_ids` rendered from `ids` and `start_time` 25 h ago, with `capture_response`. Its `response_template` compacts the answer to `[["sensor.x", [[hour_epoch, mean], ...]], ...]` (about 0.5 KB per series); `on_success` calls `id(ui).load_history(response["response"])`, `on_error` calls `id(ui).history_request_failed(error)`.
 - **HA side (checked in HA core, `recorder/services.py`, `helpers/service.py`, `esphome/manager.py`):** `recorder.get_statistics` is an admin service with `supports_response: only`, returning `{"statistics": {"<id>": [{"start", "end", "mean"}, ...]}}` with ISO `start`. The admin check only applies to calls with a user; ESPHome device calls carry none. It needs "Allow the device to perform Home Assistant actions". Only entities with a `state_class` have statistics; others are simply absent from the answer. HA compiles an hour's statistics shortly after the hour ends, so the latest closed hour may still be the device's own.
 - **Merge (`HourlyHistory::set_closed`):** HA's mean replaces the device's for closed hours inside the 24 h window (HA's covers the whole hour; the device's may be partial after a reboot). The open hour stays the device's own minute samples.
+
+### 5.3 Energy today
+
+The Energy page (spec.md "Energy") keeps the closed hours of today and yesterday in `EnergyDay` (`model_energy.h`, RAM only, 2 x 24 floats), indexed by local calendar day and hour (`ESPTime::from_epoch_local`).
+- **Wiring:** `power: energy: sensor:` is a `homeassistant` sensor of a cumulative kWh counter (`state_class: total_increasing`; it must be kWh: the device does not convert). Its live value feeds the open hour. `statistic_id:` defaults to the sensor's `entity_id`.
+- **Request:** `power: energy: on_request:` gets `ids` and runs `recorder.get_statistics` with `period: hour`, `types: [change, state]`, `start_time` 50 h ago (covers yesterday 00:00 local, DST included). The `response_template` compacts the answer to `[[hour_epoch, change_kwh, end_counter_or_null], ...]` (~1.3 KB); `on_success` calls `id(ui).load_energy(response["response"])`, `on_error` calls `id(ui).energy_request_failed(error)`. Same HA requirements as §5.2 (admin check not applied to device calls, "Allow the device to perform Home Assistant actions").
+- **When:** once per connection as soon as the clock is set, then once per hour. HA compiles an hour's statistics a few minutes after it ends, so a request made before minute 6 is repeated at minute 6. One request at a time, no answer within 30 s is logged.
+- **Open hour:** `live - base`, where base is the `state` (counter at the end) of the last closed hour from HA; without it, the live counter seen at the last hour rollover. Until one of them exists the current bar shows as a stub. A counter that goes down (reset, stale) reads as unknown, never negative.
+- **Rollover:** when the hour closes with no gap, the device stores its own `live - base` for that hour until HA's statistics replace it (HA's `change` wins). A gap of more than an hour stores nothing for the unseen hours.
+- **Day change:** today becomes yesterday, today empties; the backfill refills yesterday's last hour.
 
 ## 6. Weather
 
@@ -201,6 +211,8 @@ Reserved shape, so the display phase does not block it: a `dial_ui` trigger `on_
 - The component gets the display/screen from `lvgl::LvglComponent` (`get_disp()`, `get_screen_active()`, `lvgl/lvgl_esphome.h`) via `cv.use_id`, and must set up after it (`LvglComponent` priority is `setup_priority::PROCESSOR`).
 
 ## 9. Decisions and open items
+
+Decided (2026-11-16): Energy today = child of Electricity, today 00h-24h, no cost, no limit (§5.3).
 
 Decided (2026-11-15): Electricity = `power: {sensor, contract_limit: 6000W}` with the entity in the `power_entity` substitution; no Wi-Fi or battery icons in this iteration (no data needed for them); sensor wiring by id (§3.1); thresholds and contract limit in `dial_ui:` YAML (§3.4); history hourly over 24 h, device-only, RAM only (§5); weather provider Météo-France, rain arc = next 60 min from the Next rain sensor parsed on the device, no weather warnings this iteration, condition → icon table (§6).
 

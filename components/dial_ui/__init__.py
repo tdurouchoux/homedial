@@ -44,6 +44,8 @@ CONF_ON_FORECAST_REQUEST = "on_forecast_request"
 CONF_ON_HISTORY_REQUEST = "on_history_request"
 CONF_STATISTIC_ID = "statistic_id"
 CONF_POWER = "power"
+CONF_ENERGY = "energy"
+CONF_ON_REQUEST = "on_request"
 CONF_BACKLIGHT = "backlight"
 CONF_BUZZER = "buzzer"
 CONF_POWER_HOLD = "power_hold"
@@ -159,11 +161,25 @@ WEATHER_SCHEMA = cv.All(
 )
 
 
+# Energy today (design ScreenEnergy), the child page of Electricity: hourly kWh bars.
+ENERGY_SCHEMA = cv.Schema(
+    {
+        # Cumulative energy counter in kWh (state_class total_increasing), e.g. the Energy dashboard's meter.
+        cv.Required(CONF_SENSOR): cv.use_id(sensor.Sensor),
+        # HA statistic id for the hourly backfill; default: the sensor's entity_id when it is a
+        # `homeassistant` sensor without `attribute:` (contract.md §5.3).
+        cv.Optional(CONF_STATISTIC_ID): cv.string,
+        # Gets `ids`; runs recorder.get_statistics, on_success hands the rows to id(ui).load_energy().
+        cv.Optional(CONF_ON_REQUEST): automation.validate_automation(single=True),
+    }
+)
+
 # Electricity (design ScreenPower): live power and the contract limit (ring 0 to limit).
 POWER_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_SENSOR): cv.use_id(sensor.Sensor),
         cv.Required(CONF_CONTRACT_LIMIT): cv.All(cv.float_with_unit("power", "(W|w)?"), cv.Range(min=100.0)),
+        cv.Optional(CONF_ENERGY): ENERGY_SCHEMA,
     }
 )
 
@@ -189,7 +205,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _statistic_id(reading):
-    """Entity id of a history reading's sensor, for recorder.get_statistics, or None."""
+    """Entity id of a reading's sensor (history or energy), for recorder.get_statistics, or None."""
     if CONF_STATISTIC_ID in reading:
         return reading[CONF_STATISTIC_ID]
     sensor_id = reading[CONF_SENSOR].id
@@ -205,6 +221,8 @@ def _validate_history_needs_time(config):
     uses_history = any(m[CONF_HISTORY] for r in config[CONF_ROOMS] for m in r[CONF_METRICS])
     if uses_history and CONF_TIME_ID not in config:
         raise cv.Invalid("time_id is required when a metric has history: true", [CONF_TIME_ID])
+    if CONF_ENERGY in config.get(CONF_POWER, {}) and CONF_TIME_ID not in config:
+        raise cv.Invalid("time_id is required with power: energy: (hour buckets)", [CONF_TIME_ID])
     if CONF_WEATHER in config and CONF_TIME_ID not in config:
         raise cv.Invalid("time_id is required with weather: (rain timing, forecast hours)", [CONF_TIME_ID])
     return config
@@ -302,6 +320,17 @@ async def to_code(config):
     if power := config.get(CONF_POWER):
         sens = await cg.get_variable(power[CONF_SENSOR])
         cg.add(var.set_power(sens, power[CONF_CONTRACT_LIMIT]))
+        if energy := power.get(CONF_ENERGY):
+            esens = await cg.get_variable(energy[CONF_SENSOR])
+            stat_id = _statistic_id(energy) if CONF_ON_REQUEST in energy else None
+            if CONF_ON_REQUEST in energy and not stat_id:
+                _LOGGER.warning(
+                    "dial_ui: power energy has no HA statistic id (not a homeassistant sensor "
+                    "without attribute): set statistic_id: to backfill the hourly bars"
+                )
+            cg.add(var.set_energy(esens, stat_id or ""))
+            if on_request := energy.get(CONF_ON_REQUEST):
+                await automation.build_automation(var.get_energy_request_trigger(), [(cg.std_string, "ids")], on_request)
 
     if CONF_BACKLIGHT in config:
         cg.add(var.set_backlight(await cg.get_variable(config[CONF_BACKLIGHT])))

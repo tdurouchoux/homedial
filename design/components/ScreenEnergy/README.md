@@ -1,8 +1,8 @@
-> **Future page, not built.** Energy history is out of scope for now because the device would have to store the data. `spec.md` has no Energy page. Kept here for later.
+> **Built 2026-11-16** as the child page of Electricity (`spec.md` "Energy"). Differences from this spec: the delta compares today's closed hours with the same hours yesterday; no cost; no limit line.
 
 Energy shows today's consumption: the total, the 24 hourly bars, and the change against yesterday.
 
-Consumer provides: today's total in kWh, 24 hourly values (not-yet-reached hours empty), yesterday's total for the delta, optionally a cost.
+Consumer provides: today's total in kWh, 24 hourly values (not-yet-reached hours empty), the change in percent against yesterday, optionally a cost.
 
 - "Today" in `label` / `ink-muted` at top 24; total in `value-m` / `ink` at top 42 with its unit; BarChart at top 80; "00h" and "24h" in `caption` at top 158; the delta in `label` / `ink` at top 178.
 - The delta is an arrow glyph plus signed percentage ("-12% vs yday"), in `ink`: less or more consumption isn't good or bad here, so no state colour.

@@ -57,9 +57,9 @@ Single button: the encoder push is the only required button. `LV_EVENT_CLICKED` 
 ## Weather icons
 Ship the six conditions (clear, part cloudy, cloudy, rain, snow, storm) as one icon font, not as images: draw them as 48 px SVG outlines with a 3 px stroke, convert to a TTF (Fontello, IcoMoon or fontforge), then run `lv_font_conv` at 48 and 32 px, 4 bpp, one glyph per condition in the private-use area (`-r 0xE000-0xE005`). Show a glyph in an `lv_label` and colour it with the text colour (`DIALED_INK`), so a theme change needs no assets. Keep the condition word on screen too.
 
-## Power and energy (energy is a future page)
+## Power and energy
 - Live power uses the ring gauge with the range 0 to the contract limit in watts. Switch the indicator colour at 80% (`DIALED_WARN`) and 100% (`DIALED_DANGER`), and show the matching status label.
-- Energy per hour is an `lv_chart` of type `LV_CHART_TYPE_BAR` with 24 points on one series. Colour bars individually in `LV_EVENT_DRAW_TASK_ADDED`: past hours `DIALED_LINE`, the current hour `DIALED_ACCENT`, bars above the limit `DIALED_WARN`; hours not yet reached are `LV_CHART_POINT_NONE`.
+- Energy per hour is 24 bars: past hours `DIALED_LINE`, the current hour `DIALED_ACCENT`, hours not yet reached 2 px `DIALED_TRACK` stubs (bars above a limit would be `DIALED_WARN`; no limit is configured in this build). The firmware (`widget_bar_chart.cpp`) draws them as 24 `lv_obj` rectangles on a 1 px baseline, one colour and height each, instead of an `lv_chart` of type `LV_CHART_TYPE_BAR` with `LV_EVENT_DRAW_TASK_ADDED` overrides; both give the same picture.
 - Update power at 1 Hz, energy once a minute.
 
 ## Rooms and sensors

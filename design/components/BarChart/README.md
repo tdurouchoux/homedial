@@ -1,4 +1,4 @@
-The BarChart shows 24 hourly values as bars in the same 160 x 74 box as TrendChart; use it for energy, where each bar is an amount per hour (the Energy page is a future page).
+The BarChart shows 24 hourly values as bars in the same 160 x 74 box as TrendChart; use it for energy, where each bar is an amount per hour (the Energy page, `ScreenEnergy`). The LVGL build draws the 24 bars as plain rectangles (no `lv_chart`), restyling only the bars that changed.
 
 Consumer provides: 24 values (or fewer, with the rest not yet reached), the axis maximum, optionally a limit and the current hour.
 
