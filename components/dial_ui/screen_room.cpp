@@ -80,7 +80,7 @@ void ScreenRoom::update_reading(const Room &room, size_t index, bool online) {
   Status st = compute_status(display_round(r.value, r.metric), r.thresholds, online);
   lv_label_set_text(this->slots_[index].value, buf);
   lv_obj_set_style_text_color(this->slots_[index].value, value_color(st), LV_PART_MAIN);
-  this->slots_[index].segment.set(1.0f, st, false);  // whole segment in the state colour; empty offline
+  this->slots_[index].segment.set(st);  // whole segment in the state colour; track when offline
 }
 
 int ScreenRoom::slot_index(lv_obj_t *obj) const {
