@@ -4,20 +4,9 @@
 
 namespace esphome::dial_ui {
 
-static constexpr int32_t BASELINE_Y = 72;          // 1 px `track` line
-static constexpr int32_t BOTTOM = BASELINE_Y - 1;  // bars stand on the line
-static constexpr int32_t PLOT_H = BOTTOM;          // tallest bar
-static constexpr int32_t BAR_W = 4;                // 62 % of a 6.67 px slot
+static constexpr int32_t PLOT_H = 72;  // bars stand on the 1 px baseline below
 static constexpr int32_t STUB_H = 2;
-
-static lv_obj_t *make_rect(lv_obj_t *parent) {
-  lv_obj_t *o = lv_obj_create(parent);
-  lv_obj_remove_style_all(o);
-  lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, LV_PART_MAIN);
-  return o;
-}
+static constexpr int32_t GAP = 3;      // between bars: 24 bars of 3.8 px, ~ 62 % of a 6.67 px slot
 
 void BarChart::create(lv_obj_t *parent, int32_t top) {
   lv_obj_t *box = lv_obj_create(parent);
@@ -27,53 +16,71 @@ void BarChart::create(lv_obj_t *parent, int32_t top) {
   lv_obj_set_size(box, W, H);
   lv_obj_align(box, LV_ALIGN_TOP_MID, 0, top);
 
-  lv_obj_t *line = make_rect(box);
-  lv_obj_set_size(line, W, 1);
-  lv_obj_set_pos(line, 0, BASELINE_Y);
-  lv_obj_set_style_bg_color(line, DIALED_TRACK, LV_PART_MAIN);
+  lv_obj_t *c = lv_chart_create(box);
+  lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_size(c, W, PLOT_H);
+  lv_obj_set_pos(c, 0, 0);
+  lv_chart_set_type(c, LV_CHART_TYPE_BAR);
+  lv_chart_set_point_count(c, N);
+  lv_chart_set_div_line_count(c, 0, 0);
+  lv_chart_set_axis_range(c, LV_CHART_AXIS_PRIMARY_Y, 0, PLOT_H);
+  // No ground, frame or padding; bars have `radius-sm`-sized tops.
+  lv_obj_set_style_bg_opa(c, LV_OPA_TRANSP, LV_PART_MAIN);
+  lv_obj_set_style_border_width(c, 0, LV_PART_MAIN);
+  lv_obj_set_style_radius(c, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(c, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_column(c, GAP, LV_PART_MAIN);
+  lv_obj_set_style_radius(c, 2, LV_PART_ITEMS);
 
+  this->series_ = lv_chart_add_series(c, DIALED_LINE, LV_CHART_AXIS_PRIMARY_Y);
   for (size_t i = 0; i < N; i++) {
-    int32_t x0 = static_cast<int32_t>(i) * W / static_cast<int32_t>(N);
-    int32_t x1 = static_cast<int32_t>(i + 1) * W / static_cast<int32_t>(N);
-    lv_obj_t *b = make_rect(box);
-    lv_obj_set_width(b, BAR_W);
-    lv_obj_set_x(b, x0 + (x1 - x0 - BAR_W) / 2);
-    lv_obj_set_style_bg_color(b, DIALED_TRACK, LV_PART_MAIN);
-    lv_obj_set_style_radius(b, 1, LV_PART_MAIN);
-    lv_obj_set_height(b, STUB_H);
-    lv_obj_set_y(b, BOTTOM - STUB_H);
-    this->bars_[i] = b;
-    this->height_[i] = STUB_H;
+    this->px_[i] = STUB_H;
     this->kind_[i] = 3;
   }
-  this->box_ = box;
+  lv_chart_set_series_ext_y_array(c, this->series_, this->px_);
+  lv_obj_add_flag(c, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+  lv_obj_add_event_cb(c, &BarChart::draw_cb_, LV_EVENT_DRAW_TASK_ADDED, this);
+  this->chart_ = c;
+
+  lv_obj_t *base = lv_obj_create(box);
+  lv_obj_remove_style_all(base);
+  lv_obj_remove_flag(base, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(base, W, 1);
+  lv_obj_set_pos(base, 0, PLOT_H);
+  lv_obj_set_style_bg_color(base, DIALED_TRACK, LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(base, LV_OPA_COVER, LV_PART_MAIN);
+}
+
+// Fill colour of each bar (LVGL draws one fill task per point; id2 is the point index).
+void BarChart::draw_cb_(lv_event_t *e) {
+  auto *self = static_cast<BarChart *>(lv_event_get_user_data(e));
+  lv_draw_task_t *task = lv_event_get_draw_task(e);
+  auto *base = static_cast<lv_draw_dsc_base_t *>(lv_draw_task_get_draw_dsc(task));
+  if (base->part != LV_PART_ITEMS)
+    return;
+  lv_draw_fill_dsc_t *fill = lv_draw_task_get_fill_dsc(task);
+  if (fill == nullptr || base->id2 >= N)
+    return;
+  uint8_t kind = self->kind_[base->id2];
+  fill->color = kind == 2 ? DIALED_ACCENT : (kind == 1 ? DIALED_LINE : DIALED_TRACK);
 }
 
 void BarChart::set_data(const float *values, size_t current, float axis_max) {
+  bool changed = false;
   for (size_t i = 0; i < N; i++) {
-    float v = values[i];
-    int32_t h;
-    uint8_t kind;
-    if (std::isnan(v)) {
-      h = STUB_H;
-      kind = 3;
-    } else {
-      h = bar_px(v, axis_max, PLOT_H);
+    int32_t h = STUB_H;
+    uint8_t kind = 3;
+    if (!std::isnan(values[i])) {
+      h = bar_px(values[i], axis_max, PLOT_H);
       kind = i == current ? 2 : 1;
     }
-    lv_obj_t *b = this->bars_[i];
-    if (h != this->height_[i]) {
-      lv_obj_set_height(b, h);
-      lv_obj_set_y(b, BOTTOM - h);
-      lv_obj_set_style_radius(b, h >= 4 ? 2 : 1, LV_PART_MAIN);
-      this->height_[i] = h;
-    }
-    if (kind != this->kind_[i]) {
-      lv_obj_set_style_bg_color(b, kind == 2 ? DIALED_ACCENT : (kind == 1 ? DIALED_LINE : DIALED_TRACK),
-                                LV_PART_MAIN);
-      this->kind_[i] = kind;
-    }
+    changed |= h != this->px_[i] || kind != this->kind_[i];
+    this->px_[i] = h;
+    this->kind_[i] = kind;
   }
+  if (changed)
+    lv_chart_refresh(this->chart_);
 }
 
 }  // namespace esphome::dial_ui

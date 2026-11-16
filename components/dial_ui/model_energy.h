@@ -1,6 +1,6 @@
 #pragma once
 // Energy today (design ScreenEnergy / BarChart, spec.md "Energy"): 24 hourly kWh bars for the
-// local calendar day, plus yesterday's hours for the delta. RAM only, pure C++, host-tested.
+// local calendar day. RAM only, pure C++, host-tested.
 //
 // Source: a cumulative kWh counter. Closed hours come from Home Assistant's hourly statistics
 // (`change`, contract.md §5.3). The open hour is the live counter minus its value at the start
@@ -61,16 +61,9 @@ class EnergyDay {
       if (!std::isnan(v))
         this->store_(this->day_, this->cur_hour_, v);
     }
-    if (lt.day != this->day_) {
-      if (lt.day == this->day_ + 1) {
-        for (size_t i = 0; i < HOURS; i++) {
-          this->yday_[i] = this->today_[i];
-          this->today_[i] = NAN;
-        }
-      } else {  // a gap of more than a day: nothing known
-        for (size_t i = 0; i < HOURS; i++)
-          this->yday_[i] = this->today_[i] = NAN;
-      }
+    if (lt.day != this->day_) {  // a new day starts empty
+      for (size_t i = 0; i < HOURS; i++)
+        this->today_[i] = NAN;
       this->day_ = lt.day;
     }
     this->cur_hour_ = lt.hour;
@@ -80,8 +73,8 @@ class EnergyDay {
   }
 
   // Backfill from HA: the closed hour starting at `hour_epoch` used `change` kWh and ended with
-  // the counter at `end_state` (NaN if unknown). Only hours of today or yesterday that are closed
-  // are kept. The last closed hour's end value is also the open hour's starting counter.
+  // the counter at `end_state` (NaN if unknown). Only closed hours of today are kept.
+  // The last closed hour's end value is also the open hour's starting counter.
   void set_closed(int64_t hour_epoch, double change, double end_state) {
     if (this->local_ == nullptr || this->open_hour_ < 0 || std::isnan(change) || hour_epoch < 0)
       return;
@@ -120,24 +113,6 @@ class EnergyDay {
     return any ? static_cast<float>(sum) : NAN;
   }
 
-  // Change in percent of today's closed hours against the same hours yesterday. NaN when there
-  // is no closed hour yet, a hour is missing on either day, or yesterday used no energy.
-  float delta_percent() const {
-    if (this->open_hour_ < 0 || this->cur_hour_ < 1)
-      return NAN;
-    double t = 0, y = 0;
-    for (int i = 0; i < this->cur_hour_; i++) {
-      float a = this->today_[i], b = this->yday_[i];
-      if (std::isnan(a) || std::isnan(b))
-        return NAN;
-      t += a;
-      y += b;
-    }
-    if (!(y > 0.05))
-      return NAN;
-    return static_cast<float>((t - y) / y * 100.0);
-  }
-
  protected:
   float open_value_() const {
     if (std::isnan(this->live_) || std::isnan(this->base_))
@@ -149,17 +124,13 @@ class EnergyDay {
   void store_(int64_t day, int hour, float v) {
     if (hour < 0 || hour >= static_cast<int>(HOURS))
       return;
-    if (day == this->day_)
+    if (day == this->day_)  // hours of earlier days are not kept
       this->today_[hour] = v;
-    else if (day == this->day_ - 1)
-      this->yday_[hour] = v;
   }
 
   LocalTimeFn local_{nullptr};
   float today_[HOURS] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
                          NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
-  float yday_[HOURS] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
   int64_t open_hour_{-1};  // UTC hour number of the open hour; -1 until the clock is set
   int64_t day_{0};
   int cur_hour_{0};
@@ -203,25 +174,6 @@ inline void format_kwh(float kwh, char *buf, size_t len) {
     std::snprintf(buf, len, "%.1f", kwh < 0.05f ? 0.0f : kwh);
   else
     std::snprintf(buf, len, "%.0f", kwh);
-}
-
-// "+12% vs yday", "-3% vs yday" or "0% vs yday" (clamped to +-999). Returns the sign of the
-// rounded figure (-1, 0, 1) so the page can pick the arrow, or 0 with an empty text when missing.
-inline int format_delta(float pct, char *buf, size_t len) {
-  if (std::isnan(pct)) {
-    std::snprintf(buf, len, "%s", "");
-    return 0;
-  }
-  if (pct > 999.0f)
-    pct = 999.0f;
-  if (pct < -999.0f)
-    pct = -999.0f;
-  int r = static_cast<int>(std::lround(pct));
-  if (r == 0)
-    std::snprintf(buf, len, "0%% vs yday");
-  else
-    std::snprintf(buf, len, "%+d%% vs yday", r);
-  return r > 0 ? 1 : (r < 0 ? -1 : 0);
 }
 
 }  // namespace esphome::dial_ui

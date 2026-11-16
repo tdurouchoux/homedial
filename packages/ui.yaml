@@ -76,8 +76,8 @@ dial_ui:
             data_template:
               types: "{{ ['change', 'state'] }}"
               statistic_ids: "{{ ids.split(',') }}"
-              # Yesterday 00:00 is at most 48 h (+1 h on a DST day) before now.
-              start_time: "{{ (now() - timedelta(hours=50)).isoformat() }}"
+              # Today 00:00 local is at most 24 h (+1 h on a DST day) before now.
+              start_time: "{{ (now() - timedelta(hours=26)).isoformat() }}"
             capture_response: true
             # Compact the answer to [[hour_epoch, change_kwh, end_counter_or_null], ...].
             response_template: >-

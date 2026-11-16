@@ -111,13 +111,13 @@ Per series, a fixed ring of **24 closed hourly buckets + 1 open bucket** (the cu
 
 ### 5.3 Energy today
 
-The Energy page (spec.md "Energy") keeps the closed hours of today and yesterday in `EnergyDay` (`model_energy.h`, RAM only, 2 x 24 floats), indexed by local calendar day and hour (`ESPTime::from_epoch_local`).
+The Energy page (spec.md "Energy") keeps the closed hours of today in `EnergyDay` (`model_energy.h`, RAM only, 24 floats), indexed by local calendar day and hour (`ESPTime::from_epoch_local`).
 - **Wiring:** `power: energy: sensor:` is a `homeassistant` sensor of a cumulative kWh counter (`state_class: total_increasing`; it must be kWh: the device does not convert). Its live value feeds the open hour. `statistic_id:` defaults to the sensor's `entity_id`.
-- **Request:** `power: energy: on_request:` gets `ids` and runs `recorder.get_statistics` with `period: hour`, `types: [change, state]`, `start_time` 50 h ago (covers yesterday 00:00 local, DST included). The `response_template` compacts the answer to `[[hour_epoch, change_kwh, end_counter_or_null], ...]` (~1.3 KB); `on_success` calls `id(ui).load_energy(response["response"])`, `on_error` calls `id(ui).energy_request_failed(error)`. Same HA requirements as §5.2 (admin check not applied to device calls, "Allow the device to perform Home Assistant actions").
+- **Request:** `power: energy: on_request:` gets `ids` and runs `recorder.get_statistics` with `period: hour`, `types: [change, state]`, `start_time` 26 h ago (covers today 00:00 local, DST included). The `response_template` compacts the answer to `[[hour_epoch, change_kwh, end_counter_or_null], ...]` (~0.7 KB); `on_success` calls `id(ui).load_energy(response["response"])`, `on_error` calls `id(ui).energy_request_failed(error)`. Same HA requirements as §5.2 (admin check not applied to device calls, "Allow the device to perform Home Assistant actions").
 - **When:** once per connection as soon as the clock is set, then once per hour. HA compiles an hour's statistics a few minutes after it ends, so a request made before minute 6 is repeated at minute 6. One request at a time, no answer within 30 s is logged.
 - **Open hour:** `live - base`, where base is the `state` (counter at the end) of the last closed hour from HA; without it, the live counter seen at the last hour rollover. Until one of them exists the current bar shows as a stub. A counter that goes down (reset, stale) reads as unknown, never negative.
 - **Rollover:** when the hour closes with no gap, the device stores its own `live - base` for that hour until HA's statistics replace it (HA's `change` wins). A gap of more than an hour stores nothing for the unseen hours.
-- **Day change:** today becomes yesterday, today empties; the backfill refills yesterday's last hour.
+- **Day change:** today empties; yesterday's hours are not kept (a backfilled hour of yesterday only provides the open hour's starting counter).
 
 ## 6. Weather
 

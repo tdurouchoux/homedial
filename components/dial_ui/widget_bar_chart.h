@@ -1,9 +1,9 @@
 #pragma once
-// BarChart (design/components/BarChart): 24 hourly bars in a 160 x 74 box. Past hours `line`, the
-// current hour `accent`, hours with no data (not reached or missing) 2 px `track` stubs, a 1 px
-// `track` baseline. Drawn as 24 plain rectangles: each bar has its own colour and height, which
-// is simpler and cheaper than an lv_chart with draw-task overrides, and only the bars that
-// changed are restyled.
+// BarChart (design/components/BarChart): 24 hourly bars in a 160 x 74 box, an `lv_chart` of type
+// BAR. Past hours `line`, the current hour `accent`, hours with no data (not reached or missing)
+// 2 px `track` stubs, a 1 px `track` baseline. Bars are coloured one by one in
+// LV_EVENT_DRAW_TASK_ADDED (design/lvgl.md). Chart values are bar heights in px, so the stub
+// and the minimum bar need no special case in the axis.
 
 #include <cstddef>
 
@@ -23,10 +23,12 @@ class BarChart {
   void set_data(const float *values, size_t current, float axis_max);
 
  protected:
-  lv_obj_t *box_{nullptr};
-  lv_obj_t *bars_[N]{};
-  int32_t height_[N]{};   // last drawn height, 0 = not drawn yet
-  uint8_t kind_[N]{};     // last drawn colour: 1 line, 2 accent, 3 stub
+  static void draw_cb_(lv_event_t *e);
+
+  lv_obj_t *chart_{nullptr};
+  lv_chart_series_t *series_{nullptr};
+  int32_t px_[N]{};   // bar heights in px: the chart's values
+  uint8_t kind_[N]{};  // 1 line, 2 accent, 3 stub
 };
 
 }  // namespace esphome::dial_ui

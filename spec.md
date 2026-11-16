@@ -74,7 +74,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Pitch, Screen off
 
 ## Design alignment
 
-`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy as a child of Electricity, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed (the Energy delta compares the same hours, see "Energy").
+`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy as a child of Electricity, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
 
 ## Iteration scope
 
@@ -110,11 +110,10 @@ Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyph
 
 Decided 2026-11-16 (the earlier blocker, on-device storage, went away with the History backfill from HA statistics):
 - **Page**: child of Electricity (press / swipe up), no page dots, back returns. Shown only when `power: energy:` is set in `packages/ui.yaml`.
-- **Content** (design ScreenEnergy): "Today", today's total in kWh (one decimal up to 99.9, then whole kWh), 24 hourly bars (BarChart), "00h" / "24h" axis ends, and the change against yesterday. No cost, no limit line (bars are never `warn`).
+- **Content** (design ScreenEnergy): "Today", today's total in kWh (one decimal up to 99.9, then whole kWh), 24 hourly bars (BarChart, an `lv_chart`) and "00h" / "24h" axis ends. No cost, no limit line (bars are never `warn`), and no change against yesterday (dropped 2026-11-16: not useful; the design's delta line is not built, its place stays empty).
 - **Window**: the local calendar day 00h to 24h. Past hours `line`, the current hour `accent`, hours not reached (or without data) 2 px `track` stubs. The axis maximum is the smallest of 1, 1.5, 2, 3, 4, 5, 6, 8 (times a power of ten) that holds the tallest bar, never below 1 kWh.
-- **Delta** (differs from design, which says yesterday's total): today's *closed* hours against the *same hours* of yesterday, so it is meaningful at 09:00 too. Shown as an arrow glyph plus signed percentage ("-12% vs yday"), in `ink`. Hidden until one hour has closed, when an hour is missing on either day, or when yesterday used no energy.
 - **Source**: one cumulative kWh counter (`energy_entity` in `homedial.yaml`, state_class `total_increasing`). Closed hours are HA's hourly `change`; the open hour is the live counter minus its value at the start of the hour. Details and the request in `contract.md` §5.3.
-- **Offline**: the total reads "--" and the delta is hidden; the bars keep the hours already known.
+- **Offline**: the total reads "--"; the bars keep the hours already known.
 - Hours are indexed by the local hour, so a DST day (23 or 25 hours) has one bar too few or the repeated hour overwritten; accepted.
 
 ## Room metrics
