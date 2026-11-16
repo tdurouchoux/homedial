@@ -19,7 +19,7 @@ enum class Status : uint8_t { OK, WARN, ALERT, OFFLINE };
 struct MetricInfo {
   const char *name;        // Sensor page metric line, e.g. "Temperature"
   const char *short_label;  // Room page label (metric + unit), e.g. "Temp °C"
-  const char *unit;        // Sensor page unit line, e.g. "°C"
+  const char *unit;        // Sensor page metric line suffix, e.g. "°C" ("Temperature °C")
   int decimals;
 };
 

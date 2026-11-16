@@ -21,6 +21,20 @@ static bool near(float a, float b) { return std::fabs(a - b) < 1e-4f; }
 int main() {
   const size_t NOW = HourlyHistory::POINTS - 1;
 
+  {  // Sparkline range: needs 2 points; padded 15 %; never flatter than min_span.
+    HourlyHistory h;
+    float lo = 0, hi = 0;
+    CHECK(!sparkline_range(h, 1.0f, &lo, &hi));
+    h.add(T0, 20.0f);
+    CHECK(!sparkline_range(h, 1.0f, &lo, &hi));  // one point only
+    h.add(T0 + 3600, 30.0f);
+    CHECK(sparkline_range(h, 1.0f, &lo, &hi) && near(lo, 18.5f) && near(hi, 31.5f));
+    HourlyHistory f;
+    f.add(T0, 21.0f);
+    f.add(T0 + 3600, 21.0f);
+    CHECK(sparkline_range(f, 1.0f, &lo, &hi) && near(lo, 20.5f) && near(hi, 21.5f));  // flat line
+  }
+
   {  // Empty and unset clock.
     HourlyHistory h;
     CHECK(!h.has_data() && h.latest_index() == -1 && h.hour_start(0) == -1);

@@ -1,5 +1,6 @@
 #include "screen_sensor.h"
 
+#include <cstdio>
 #include <cstring>
 
 namespace esphome::dial_ui {
@@ -8,7 +9,7 @@ namespace esphome::dial_ui {
 static constexpr int32_t ROOM_TOP = 44;
 static constexpr int32_t METRIC_TOP = 63;
 static constexpr int32_t VALUE_TOP = 86;
-static constexpr int32_t UNIT_TOP = 142;
+static constexpr int32_t TREND_TOP = 152;
 static constexpr int32_t STATUS_TOP = 186;
 static constexpr size_t VALUE_XL_MAX_CHARS = 5;  // longer readings use value-l (design ArcGauge)
 
@@ -18,7 +19,7 @@ void ScreenSensor::create() {
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
-  this->unit_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, UNIT_TOP);
+  this->trend_.create(this->screen_, TREND_TOP);
   this->status_.create(this->screen_, STATUS_TOP);
   this->dots_.create(this->screen_);
 }
@@ -28,8 +29,10 @@ void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool 
   this->index_ = index;
   const MetricInfo &info = metric_info(room.readings[index].metric);
   this->room_.set(room.name, room.icon);
-  lv_label_set_text(this->metric_, info.name);
-  lv_label_set_text(this->unit_, info.unit);
+  char line[32];
+  snprintf(line, sizeof(line), "%s %s", info.name, info.unit);  // "Temperature °C"
+  lv_label_set_text(this->metric_, line);
+  this->trend_.set(room.readings[index]);
   if (dots_from == SIZE_MAX)
     this->dots_.set(room.readings.size(), index);
   else

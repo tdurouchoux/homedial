@@ -371,6 +371,8 @@ void DialUi::sample_history_() {
   }
   if (this->page_.kind == PageKind::HISTORY)
     this->history_screen_.update(this->rooms_[this->page_.room], online);
+  if (this->page_.kind == PageKind::SENSOR)
+    this->visible_sensor_()->update_trend(this->rooms_[this->page_.room]);
 }
 
 void DialUi::refresh_() {

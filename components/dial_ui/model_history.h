@@ -92,4 +92,27 @@ class HourlyHistory {
   uint32_t count_{0};
 };
 
+// Sensor page sparkline (design ScreenSensor): y range of the history's points, padded 15 % and
+// never flatter than `min_span`. False when fewer than 2 points have data (nothing is drawn).
+inline bool sparkline_range(const HourlyHistory &h, float min_span, float *lo, float *hi) {
+  float a = NAN, b = NAN;
+  size_t n = 0;
+  for (size_t i = 0; i < HourlyHistory::POINTS; i++) {
+    float v = h.point(i);
+    if (std::isnan(v))
+      continue;
+    a = n == 0 ? v : (v < a ? v : a);
+    b = n == 0 ? v : (v > b ? v : b);
+    n++;
+  }
+  if (n < 2)
+    return false;
+  float pad = (b - a) * 0.15f;
+  if (b - a + 2 * pad < min_span)
+    pad = (min_span - (b - a)) / 2;
+  *lo = a - pad;
+  *hi = b + pad;
+  return true;
+}
+
 }  // namespace esphome::dial_ui
