@@ -34,7 +34,7 @@ class ScreenRoom {
     lv_obj_t *box{nullptr};    // clickable target (>= 82 x 58)
     lv_obj_t *label{nullptr};  // metric + unit
     lv_obj_t *value{nullptr};
-    RingSegment segment;       // this reading's ring segment
+    ArcGauge segment;          // this reading's ring segment
   };
   lv_obj_t *screen_{nullptr};
   LocationLabel name_;

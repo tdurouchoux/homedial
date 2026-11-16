@@ -5,12 +5,12 @@ namespace esphome::dial_ui {
 static constexpr int32_t ARC_STEPS = 1000;
 static constexpr uint32_t ARC_ANIM_MS = 250;
 
-void ArcGauge::create(lv_obj_t *parent) {
+void ArcGauge::create(lv_obj_t *parent, int32_t start, int32_t sweep) {
   lv_obj_t *arc = lv_arc_create(parent);
   lv_obj_set_size(arc, DIALED_ARC_SIZE, DIALED_ARC_SIZE);
   lv_obj_center(arc);
   lv_arc_set_rotation(arc, DIALED_ARC_ROTATION);
-  lv_arc_set_bg_angles(arc, 0, DIALED_ARC_SWEEP);
+  lv_arc_set_bg_angles(arc, start, start + sweep);
   lv_arc_set_range(arc, 0, ARC_STEPS);
   lv_arc_set_value(arc, 0);
   lv_obj_remove_style(arc, nullptr, LV_PART_KNOB);
@@ -53,31 +53,6 @@ void ArcGauge::set(float fraction, Status status, bool animate) {
   lv_anim_set_duration(&a, ARC_ANIM_MS);
   lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
   lv_anim_start(&a);
-}
-
-void RingSegment::create(lv_obj_t *parent, int32_t start, int32_t sweep) {
-  lv_obj_t *arc = lv_arc_create(parent);
-  lv_obj_set_size(arc, DIALED_ARC_SIZE, DIALED_ARC_SIZE);
-  lv_obj_center(arc);
-  lv_arc_set_rotation(arc, DIALED_ARC_ROTATION);
-  lv_arc_set_bg_angles(arc, start, start + sweep);
-  lv_obj_remove_style(arc, nullptr, LV_PART_KNOB);
-  lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_arc_width(arc, DIALED_RING_W, LV_PART_MAIN);
-  lv_obj_set_style_arc_rounded(arc, true, LV_PART_MAIN);
-  lv_obj_set_style_arc_color(arc, DIALED_TRACK, LV_PART_MAIN);  // starts OFFLINE
-  lv_obj_set_style_arc_opa(arc, LV_OPA_TRANSP, LV_PART_INDICATOR);  // lv_draw_arc skips it
-  lv_obj_set_style_arc_width(arc, 0, LV_PART_INDICATOR);
-  this->arc_ = arc;
-  this->status_ = Status::OFFLINE;
-}
-
-void RingSegment::set(Status status) {
-  if (this->arc_ == nullptr || status == this->status_)
-    return;
-  this->status_ = status;
-  lv_obj_set_style_arc_color(this->arc_, status == Status::OFFLINE ? DIALED_TRACK : status_color(status),
-                             LV_PART_MAIN);
 }
 
 }  // namespace esphome::dial_ui
