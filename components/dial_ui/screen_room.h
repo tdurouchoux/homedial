@@ -19,8 +19,17 @@ class ScreenRoom {
   void nudge(int32_t dx, int32_t dy) {
     nudge_in(this->name_.obj(), dx, 0);
     for (size_t i = 0; i < this->slot_count_; i++) {
-      size_t k = dx < 0 ? this->slot_count_ - 1 - i : i;  // arriving from the left: rightmost last
-      nudge_in(this->slots_[i].box, dx, dy, static_cast<uint32_t>(k + (dx != 0 ? 1 : 0)) * 30);
+      // Sideways, the stagger follows horizontal position (leading side first), so the centred top
+      // reading of a 3-reading room moves between the left and right ones, not before or after both.
+      size_t k = i;
+      if (dx != 0) {
+        size_t rank = 0;  // readings to the left of this one
+        for (size_t j = 0; j < this->slot_count_; j++)
+          if (this->slot_x_[j] < this->slot_x_[i])
+            rank++;
+        k = (dx < 0 ? this->slot_count_ - 1 - rank : rank) + 1;
+      }
+      nudge_in(this->slots_[i].box, dx, dy, static_cast<uint32_t>(k) * 30);
     }
   }
   lv_obj_t *screen() const { return this->screen_; }
@@ -36,6 +45,7 @@ class ScreenRoom {
   lv_obj_t *screen_{nullptr};
   LocationLabel name_;
   Slot slots_[METRIC_COUNT];
+  int32_t slot_x_[METRIC_COUNT]{};  // reading centres (x), for the sideways stagger
   size_t slot_count_{0};
   PageDots dots_;
 };

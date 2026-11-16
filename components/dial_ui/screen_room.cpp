@@ -53,6 +53,7 @@ void ScreenRoom::create(const Room &room) {
     lv_obj_add_flag(s.box, LV_OBJ_FLAG_EVENT_BUBBLE);      // taps reach the screen handler
     lv_obj_set_size(s.box, SLOT_W, SLOT_H);
     lv_obj_set_pos(s.box, pos[i].cx - SLOT_W / 2, pos[i].top - 4);
+    this->slot_x_[i] = pos[i].cx;
     lv_obj_set_style_radius(s.box, DIALED_RADIUS_MD, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s.box, DIALED_SURFACE_2, LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(s.box, LV_OPA_COVER, LV_STATE_PRESSED);
