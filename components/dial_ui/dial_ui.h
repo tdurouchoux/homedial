@@ -118,6 +118,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void wake_();
   static void adjust_event_cb_(lv_event_t *e);
   bool settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
+  bool settings_drag_{false};  // a touch is dragging the Settings scroll arc
 
   // History and Energy pages: scrub with the encoder (press, turn), or touch: hold 250 ms on a point
   // to show it (no drag). The helpers pick the visible page's chart.

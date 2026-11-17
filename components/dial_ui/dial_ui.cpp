@@ -718,7 +718,7 @@ void DialUi::load_(lv_obj_t *screen, Slide slide) {
 void DialUi::attach_events_(lv_obj_t *screen) {
   static const lv_event_code_t CODES[] = {LV_EVENT_KEY,     LV_EVENT_SHORT_CLICKED, LV_EVENT_LONG_PRESSED,
                                           LV_EVENT_GESTURE, LV_EVENT_PRESSED,       LV_EVENT_RELEASED,
-                                          LV_EVENT_PRESS_LOST};
+                                          LV_EVENT_PRESS_LOST, LV_EVENT_PRESSING};
   for (lv_event_code_t c : CODES)
     lv_obj_add_event_cb(screen, &DialUi::event_cb_, c, this);
 }
@@ -985,6 +985,28 @@ void DialUi::end_scrub_() {
 bool DialUi::settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder) {
   lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(e));
   if (this->page_.kind == PageKind::SETTINGS) {
+    // Touch on the scroll arc: press or drag along it to pick the row. The swipe it makes is not
+    // a "close Settings" gesture.
+    lv_indev_t *indev = lv_indev_active();
+    if (indev != nullptr && lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {
+      lv_point_t p;
+      lv_indev_get_point(indev, &p);
+      if (code == LV_EVENT_PRESSED) {
+        this->settings_drag_ = target == this->settings_screen_.screen() &&
+                               this->settings_screen_.row_at_point(p.x, p.y, true) >= 0;
+      }
+      if (this->settings_drag_) {
+        if (code == LV_EVENT_PRESSED || code == LV_EVENT_PRESSING) {
+          int row = this->settings_screen_.row_at_point(p.x, p.y, false);
+          size_t f = this->settings_screen_.focus();
+          if (row >= 0 && static_cast<size_t>(row) != f)
+            this->settings_screen_.set_focus(static_cast<size_t>(row), static_cast<size_t>(row) > f ? 1 : -1);
+        }
+        if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST)
+          this->settings_drag_ = false;
+        return true;  // gestures and the release tap are swallowed while dragging
+      }
+    }
     if (code == LV_EVENT_KEY) {  // turn moves the row focus
       uint32_t key = lv_event_get_key(e);
       size_t f = this->settings_screen_.focus();

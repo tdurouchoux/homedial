@@ -21,6 +21,9 @@ class ScreenSettings {
       nudge_in(this->slots_[k].box, 0, dy, static_cast<uint32_t>(k) * 30);
   }
   lv_obj_t *screen() const { return this->screen_; }
+  // Touch on the scroll arc: the list row that a point (x, y) on the ring maps to, or -1 when the
+  // point is not near the track (`start`: strict zone for a press; false: any angle, clamped).
+  int row_at_point(int32_t x, int32_t y, bool start) const;
 
  protected:
   struct Slot {

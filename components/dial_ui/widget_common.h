@@ -21,6 +21,18 @@ inline lv_color_t status_color(Status s) {
   }
 }
 
+// The metric's identity colour (the dot beside its name); never a status.
+inline lv_color_t metric_color(Metric m) {
+  switch (m) {
+    case Metric::TEMPERATURE:
+      return DIALED_METRIC_TEMP;
+    case Metric::HUMIDITY:
+      return DIALED_METRIC_HUM;
+    default:
+      return DIALED_METRIC_AIR;
+  }
+}
+
 // Room page: the value colour alone carries the state (ink when OK).
 inline lv_color_t value_color(Status s) { return s == Status::OK ? DIALED_INK : status_color(s); }
 

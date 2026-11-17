@@ -1,5 +1,7 @@
 #include "screen_settings.h"
 
+#include <cmath>
+
 namespace esphome::dial_ui {
 
 static constexpr int32_t ROW_W = 176;
@@ -111,6 +113,22 @@ void ScreenSettings::draw_() {
   int32_t start = TRACK_START + static_cast<int32_t>(this->focus_) * (TRACK_SPAN - THUMB_SPAN) /
                                     static_cast<int32_t>(SETTINGS_ROWS - 1);
   lv_arc_set_angles(this->thumb_, start % 360, (start + THUMB_SPAN) % 360);
+}
+
+int ScreenSettings::row_at_point(int32_t x, int32_t y, bool start) const {
+  float dx = static_cast<float>(x - DIALED_DISPLAY / 2), dy = static_cast<float>(y - DIALED_DISPLAY / 2);
+  if (start && dx * dx + dy * dy < 85.0f * 85.0f)
+    return -1;  // inside the list area, not on the ring
+  float a = std::atan2(dy, dx) * 180.0f / 3.14159265f;  // 0 = 3 o'clock, clockwise (y down)
+  // Thumb centre runs 330 + 12 * row degrees (TRACK_START + THUMB_SPAN / 2 ...).
+  const float c0 = TRACK_START + THUMB_SPAN / 2.0f;
+  const float per_row = (TRACK_SPAN - THUMB_SPAN) / static_cast<float>(SETTINGS_ROWS - 1);
+  float rel = std::fmod(a - c0 + 540.0f, 360.0f) - 180.0f;  // -180..180 around the first row
+  if (start && (rel < -40.0f || rel > (TRACK_SPAN - THUMB_SPAN) + 40.0f))
+    return -1;
+  float r = rel / per_row;
+  int row = static_cast<int>(std::lround(r));
+  return row < 0 ? 0 : (row >= static_cast<int>(SETTINGS_ROWS) ? static_cast<int>(SETTINGS_ROWS) - 1 : row);
 }
 
 int ScreenSettings::row_for(lv_obj_t *target) const {
