@@ -73,12 +73,12 @@ class ArcScale {
 
   // The three labels of a value scale (min, middle, max), without units: "10", "25", "40".
   void set_range(float lo, float hi) {
-    char buf[12];
-    snprintf(buf, sizeof(buf), "%g", static_cast<double>(lo));
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%.5g", static_cast<double>(lo));
     this->set_label(0, buf);
-    snprintf(buf, sizeof(buf), "%g", static_cast<double>((lo + hi) / 2.0f));
+    snprintf(buf, sizeof(buf), "%.5g", static_cast<double>((lo + hi) / 2.0f));
     this->set_label(1, buf);
-    snprintf(buf, sizeof(buf), "%g", static_cast<double>(hi));
+    snprintf(buf, sizeof(buf), "%.5g", static_cast<double>(hi));
     this->set_label(2, buf);
   }
 
