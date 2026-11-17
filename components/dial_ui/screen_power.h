@@ -3,6 +3,7 @@
 
 #include "model_power.h"
 #include "widget_arc_gauge.h"
+#include "widget_arc_scale.h"
 #include "widget_common.h"
 #include "widget_metric_label.h"
 #include "widget_page_dots.h"
@@ -30,6 +31,7 @@ class ScreenPower {
   lv_obj_t *value_{nullptr};
   lv_obj_t *unit_{nullptr};
   ArcGauge gauge_;
+  ArcScale scale_;
   StatusLabel status_;
   PageDots dots_;
   float limit_w_{0};

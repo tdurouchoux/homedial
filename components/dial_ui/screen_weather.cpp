@@ -13,6 +13,14 @@ static constexpr int32_t RAIN_TOP = 172;
 void ScreenWeather::create() {
   this->screen_ = create_screen();
   this->arc_.create(this->screen_);
+  this->scale_.create(this->screen_, 5);  // every 15 min of the next hour
+  const char *const marks[] = {"15", "30", "45"};
+  const float fracs[] = {0.25f, 0.5f, 0.75f};
+  for (size_t i = 0; i < 3; i++) {
+    this->scale_.add_label(fracs[i], SCALE_LABEL_MID_R);
+    this->scale_.set_label(i, marks[i]);
+  }
+  this->scale_.set_visible(false);
   this->icon_ = create_weather_icon(this->screen_);
   lv_obj_align(this->icon_, LV_ALIGN_TOP_MID, 0, ICON_TOP);
   this->temp_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, TEMP_TOP);
@@ -53,6 +61,7 @@ void ScreenWeather::update(float temp, const std::string &condition, const RainR
 
   size_t shown = online ? n : 0;
   this->arc_.set(runs, shown, online && rain_known);
+  this->scale_.set_visible(online && rain_known);  // the scale goes with the ring
   char line[24];
   rain_line(runs, shown, line, sizeof line);
   lv_label_set_text(this->rain_, line);  // empty when dry: no "No rain" (design)

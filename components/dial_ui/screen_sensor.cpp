@@ -16,6 +16,10 @@ static constexpr size_t VALUE_XL_MAX_CHARS = 5;  // longer readings use value-l 
 void ScreenSensor::create() {
   this->screen_ = create_screen();
   this->gauge_.create(this->screen_);
+  this->scale_.create(this->screen_, 3);
+  this->scale_.add_label(0.0f, SCALE_LABEL_R);
+  this->scale_.add_label(0.5f, SCALE_LABEL_MID_R);
+  this->scale_.add_label(1.0f, SCALE_LABEL_R);
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_.create(this->screen_, DIALED_FONT_LABEL, MetricIconSize::SENSOR, 6, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
@@ -34,6 +38,7 @@ void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool 
   snprintf(line, sizeof(line), "%s %s", info.name, info.unit);  // "Temperature °C"
   this->metric_.set_metric(room.readings[index].metric);
   lv_label_set_text(this->metric_.text(), line);
+  this->scale_.set_range(room.readings[index].thresholds.min, room.readings[index].thresholds.max);
   this->trend_.set(room.readings[index]);
   if (dots_from == SIZE_MAX)
     this->dots_.set(room.readings.size(), index);

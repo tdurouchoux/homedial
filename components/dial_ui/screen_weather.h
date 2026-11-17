@@ -5,6 +5,7 @@
 #include "model_weather.h"
 #include "widget_common.h"
 #include "widget_page_dots.h"
+#include "widget_arc_scale.h"
 #include "widget_status_label.h"
 #include "widget_weather.h"
 
@@ -33,6 +34,7 @@ class ScreenWeather {
   lv_obj_t *word_{nullptr};
   lv_obj_t *rain_{nullptr};
   RainArc arc_;
+  ArcScale scale_;  // 15 / 30 / 45 min, only with the ring
   StatusLabel status_;  // OFFLINE in place of the condition word when data is missing
   PageDots dots_;
 };

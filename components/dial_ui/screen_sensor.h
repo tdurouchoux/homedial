@@ -5,6 +5,7 @@
 
 #include "model_room.h"
 #include "widget_arc_gauge.h"
+#include "widget_arc_scale.h"
 #include "widget_common.h"
 #include "widget_location_label.h"
 #include "widget_metric_label.h"
@@ -47,6 +48,7 @@ class ScreenSensor {
   MetricLabel metric_;
   lv_obj_t *value_{nullptr};
   ArcGauge gauge_;
+  ArcScale scale_;
   Sparkline trend_;
   StatusLabel status_;
   PageDots dots_;
