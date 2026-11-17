@@ -8,7 +8,8 @@ extern "C" {
 // tools/gen_icons.js -> metric_icons.c (A8 images drawn in the recolour colour).
 extern const lv_image_dsc_t dialed_metric_temperature_12, dialed_metric_humidity_12, dialed_metric_air_quality_12,
     dialed_metric_temperature_14, dialed_metric_humidity_14, dialed_metric_air_quality_14,
-    dialed_metric_temperature_16, dialed_metric_humidity_16, dialed_metric_air_quality_16;
+    dialed_metric_temperature_16, dialed_metric_humidity_16, dialed_metric_air_quality_16,
+    dialed_metric_power_12, dialed_metric_power_14, dialed_metric_power_16;
 }
 
 namespace esphome::dial_ui {
@@ -22,6 +23,13 @@ inline const lv_image_dsc_t *metric_icon_src(Metric m, MetricIconSize size) {
       {&dialed_metric_temperature_16, &dialed_metric_humidity_16, &dialed_metric_air_quality_16},
   };
   return ICONS[static_cast<size_t>(size)][static_cast<size_t>(m)];
+}
+
+// Power / energy glyph (Power now, Energy); not a room Metric.
+inline const lv_image_dsc_t *power_icon_src(MetricIconSize size) {
+  static const lv_image_dsc_t *const ICONS[3] = {&dialed_metric_power_12, &dialed_metric_power_14,
+                                                 &dialed_metric_power_16};
+  return ICONS[static_cast<size_t>(size)];
 }
 
 inline lv_color_t metric_color(Metric m) {
@@ -62,6 +70,11 @@ class MetricLabel {
   void set_metric(Metric m) {
     lv_image_set_src(this->icon_, metric_icon_src(m, this->size_));
     lv_obj_set_style_image_recolor(this->icon_, metric_color(m), LV_PART_MAIN);
+  }
+  // The power / energy bolt in front of the text.
+  void set_power() {
+    lv_image_set_src(this->icon_, power_icon_src(this->size_));
+    lv_obj_set_style_image_recolor(this->icon_, DIALED_METRIC_POWER, LV_PART_MAIN);
   }
   lv_obj_t *text() const { return this->text_; }
   lv_obj_t *obj() const { return this->row_; }

@@ -15,8 +15,10 @@ void ScreenPower::create(float limit_w, bool tappable) {
   this->limit_w_ = limit_w;
   this->screen_ = create_screen();
   this->gauge_.create(this->screen_);
-  lv_obj_t *title = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, TITLE_TOP);
-  lv_label_set_text(title, "Power now");
+  MetricLabel title;  // the widgets live on the screen; the helper only builds them
+  title.create(this->screen_, DIALED_FONT_LABEL, MetricIconSize::SENSOR, 6, TITLE_TOP);
+  title.set_power();
+  lv_label_set_text(title.text(), "Power now");
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
   if (tappable)
     make_tappable(this->value_);  // a tap opens Energy (spec.md)

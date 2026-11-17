@@ -23,6 +23,7 @@
 #define DIALED_METRIC_TEMP     lv_color_hex(0xFF8A5C)
 #define DIALED_METRIC_HUMIDITY lv_color_hex(0x5CC8FF)
 #define DIALED_METRIC_AIR      lv_color_hex(0x7BE495)
+#define DIALED_METRIC_POWER    lv_color_hex(0xC08BFF)
 #else
 #define DIALED_BG         lv_color_hex(0xF2F4F1)
 #define DIALED_SURFACE    lv_color_hex(0xE2E6E1)
@@ -42,6 +43,7 @@
 #define DIALED_METRIC_TEMP     lv_color_hex(0xC2410C)
 #define DIALED_METRIC_HUMIDITY lv_color_hex(0x0A6A9E)
 #define DIALED_METRIC_AIR      lv_color_hex(0x1A7F37)
+#define DIALED_METRIC_POWER    lv_color_hex(0x6D3FC0)
 #endif
 
 /* Fonts (enable the matching LV_FONT_MONTSERRAT_x in lv_conf.h). */

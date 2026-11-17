@@ -5,6 +5,7 @@
 #include "model_energy.h"
 #include "widget_bar_chart.h"
 #include "widget_common.h"
+#include "widget_metric_label.h"
 
 namespace esphome::dial_ui {
 
@@ -25,7 +26,7 @@ class ScreenEnergy {
   void live_readout_(const EnergyHistory &h, bool online);
 
   lv_obj_t *screen_{nullptr};
-  lv_obj_t *label_{nullptr};
+  MetricLabel label_;
   lv_obj_t *value_{nullptr};
   BarChart chart_;
   int scrub_{-1};

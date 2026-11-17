@@ -1,7 +1,7 @@
 # MetricIcon
 
-A small coloured glyph shown before the metric name (Temperature, Humidity, Air quality) on the
-Room, Sensor and History pages. The glyph identifies the metric; it never carries a status
+A small coloured glyph shown before the metric name (Temperature, Humidity, Air quality, Power /
+Energy) on the Room, Sensor, History, Power and Energy pages. The glyph identifies the metric; it never carries a status
 (status stays on the ring, the value colour and the StatusLabel).
 
 | Metric | Glyph | Colour token |
@@ -9,6 +9,7 @@ Room, Sensor and History pages. The glyph identifies the metric; it never carrie
 | Temperature | thermometer | `metric-temp` |
 | Humidity | drop | `metric-humidity` |
 | Air quality | wind | `metric-air` |
+| Power / energy | bolt | `metric-power` |
 
 ## Sizes
 Stroked 16 px grid, rendered at three sizes (stroke thickened on the smaller ones):
@@ -16,8 +17,8 @@ Stroked 16 px grid, rendered at three sizes (stroke thickened on the smaller one
 | Page | Size | Next to |
 |---|---|---|
 | Room (readings are tight, 84 px slots) | 12 px | `label` 14 px, 4 px gap |
-| History (metric line sits 16 px above the value) | 14 px | `label` 14 px, 5 px gap |
-| Sensor (spare room under the room name) | 16 px | `label` 14 px, 6 px gap |
+| History, Energy (metric line sits 16 px above the value) | 14 px | `label` 14 px, 5 px gap |
+| Sensor, Power now (spare room under the title) | 16 px | `label` 14 px, 6 px gap |
 
 Icon and text are centred together as one line.
 

@@ -16,7 +16,8 @@ void ScreenEnergy::create() {
   this->screen_ = create_screen();
   lv_obj_t *title = create_text(this->screen_, DIALED_FONT_BODY, DIALED_INK, TITLE_TOP);
   lv_label_set_text(title, "Energy");
-  this->label_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, LABEL_TOP);
+  this->label_.create(this->screen_, DIALED_FONT_LABEL, MetricIconSize::HISTORY, 5, LABEL_TOP);
+  this->label_.set_power();
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_M, DIALED_INK, VALUE_TOP);
   this->chart_.create(this->screen_, CHART_TOP);
   lv_obj_t *left = create_text(this->screen_, DIALED_FONT_CAPTION, DIALED_INK_MUTED, AXIS_TOP, -AXIS_X);
@@ -28,7 +29,7 @@ void ScreenEnergy::create() {
 }
 
 void ScreenEnergy::live_readout_(const EnergyHistory &h, bool online) {
-  lv_label_set_text(this->label_, "kWh " LV_SYMBOL_BULLET " 24 h");
+  lv_label_set_text(this->label_.text(), "kWh " LV_SYMBOL_BULLET " 24 h");
   char buf[16];
   format_kwh(online ? h.total() : NAN, buf, sizeof(buf));
   lv_label_set_text(this->value_, buf);
@@ -65,7 +66,7 @@ void ScreenEnergy::scrub(const EnergyHistory &h, int i, bool online) {
     ESPTime lt = ESPTime::from_epoch_local(static_cast<time_t>(h.hour_start(static_cast<size_t>(i))));
     snprintf(when, sizeof(when), "%02d:00", lt.hour);
   }
-  lv_label_set_text_fmt(this->label_, "kWh " LV_SYMBOL_BULLET " %s", when);
+  lv_label_set_text_fmt(this->label_.text(), "kWh " LV_SYMBOL_BULLET " %s", when);
   char buf[16];
   format_kwh(h.point(static_cast<size_t>(i)), buf, sizeof(buf));  // a missing hour reads "--"
   lv_label_set_text(this->value_, buf);

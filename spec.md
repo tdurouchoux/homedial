@@ -97,11 +97,11 @@ See `contract.md` for the ESPHome <-> UI contract.
 
 ## Room icons
 
-Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon).
+Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon). The Room page shows the name and icon larger (20 px) than Sensor and History (16 px).
 
 ### Metric icons
 
-A small coloured icon (design MetricIcon: thermometer, drop, wind) precedes the metric name on the Room (12 px), History (14 px) and Sensor (16 px) pages. Colours are the `metric-*` tokens; they identify the metric and never carry a status.
+A small coloured icon (design MetricIcon: thermometer, drop, wind, bolt) precedes the metric name on the Room (12 px), History (14 px), Sensor (16 px), Electricity "Power now" (16 px) and Energy (14 px) pages. Colours are the `metric-*` tokens; they identify the metric and never carry a status.
 
 ## Electricity
 

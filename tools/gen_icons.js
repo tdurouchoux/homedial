@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Generates the dial_ui icon images from the design SVGs (the design stays the single source of truth):
 //   design/components/WeatherIcon/preview.html -> components/dial_ui/weather_icons.c (48 and 32 px)
-//   design/components/RoomIcon/preview.html    -> components/dial_ui/room_icons.c    (16 px)
+//   design/components/RoomIcon/preview.html    -> components/dial_ui/room_icons.c    (16 and 20 px)
 //   design/components/MetricIcon/preview.html  -> components/dial_ui/metric_icons.c  (12, 14, 16 px)
 //
 // Each SVG is rendered by Chromium (Playwright) white-on-black at its native size and stored as an
@@ -32,13 +32,16 @@ const SETS = [
     // Order in the preview and the RoomIcon enum in model_room.h; each icon at 16 and 48 px (48 unused).
     names: ['living_room', 'bedroom', 'kitchen', 'bathroom', 'office', 'garage', 'garden', 'other'],
     sizes: [16],
+    // Extra sizes rendered from the 16 px SVGs (the 16 px grid scales through its viewBox):
+    // 20 px = the larger room name line on the Room page.
+    scaled: [20],
   },
   {
     src: 'design/components/MetricIcon/preview.html',
     out: 'components/dial_ui/metric_icons.c',
     prefix: 'dialed_metric_',
-    // Order in the preview and the Metric enum in model_metric.h; each icon at 12 (Room), 14 (History), 16 (Sensor) px.
-    names: ['temperature', 'humidity', 'air_quality'],
+    // Order in the preview (the Metric enum in model_metric.h, then power); each icon at 12 (Room), 14 (History), 16 (Sensor) px.
+    names: ['temperature', 'humidity', 'air_quality', 'power'],
     sizes: [12, 14, 16],
   },
 ];
@@ -100,7 +103,14 @@ async function main() {
       const r = await render(page, svg);
       images.push({ name: `${set.names[n]}_${size}`, ...r });
     }
-    const expected = set.names.length * set.sizes.length;
+    for (const target of set.scaled || []) {
+      const from = svgs.filter((v) => Number(/width="(\d+)"/.exec(v)[1]) === 16);
+      for (let n = 0; n < set.names.length; n++) {
+        const svg = from[n].replace(/width="16"/, `width="${target}"`).replace(/height="16"/, `height="${target}"`);
+        images.push({ name: `${set.names[n]}_${target}`, ...(await render(page, svg)) });
+      }
+    }
+    const expected = set.names.length * (set.sizes.length + (set.scaled || []).length);
     if (images.length !== expected) throw new Error(`${set.src}: expected ${expected} SVGs, found ${images.length}`);
     emit(set, images);
   }

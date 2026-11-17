@@ -4,6 +4,7 @@
 #include "model_power.h"
 #include "widget_arc_gauge.h"
 #include "widget_common.h"
+#include "widget_metric_label.h"
 #include "widget_page_dots.h"
 #include "widget_status_label.h"
 
