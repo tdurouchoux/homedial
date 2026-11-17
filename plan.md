@@ -20,7 +20,7 @@ the data contract in `contract.md`, and conventions in `CLAUDE.md`.
 
 ## Open items
 - Energy: set `energy_entity` in `homedial.yaml` (placeholder in the repo), check the kWh scale and the scrub on the device.
-- Touch drag scrub does not work on the device (History charts; likely cause: `lv_chart_get_pressed_point()` only changes on press). Accepted by the user on 2026-11-17: the dial scrub is enough. Not planned.
+- Touch scrub: hold on a point shows it; the drag was removed (2026-11-17, user: it never followed the finger, not wanted). Check on the device that a hold on a History point and on an Energy bar shows it.
 - History: full check over a day of uptime.
 - Weather city on the Forecast title (not shown).
 - RTC (PCF8563) as a time source before Home Assistant connects.

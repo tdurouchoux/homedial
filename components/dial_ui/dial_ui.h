@@ -119,8 +119,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   static void adjust_event_cb_(lv_event_t *e);
   bool settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
 
-  // History and Energy pages: scrub with the encoder (press, turn) or touch (hold 250 ms on the
-  // chart, drag). The helpers pick the visible page's chart.
+  // History and Energy pages: scrub with the encoder (press, turn), or touch: hold 250 ms on a point
+  // to show it (no drag). The helpers pick the visible page's chart.
   static bool is_scrub_page_(PageKind k) { return k == PageKind::HISTORY || k == PageKind::ENERGY; }
   bool scrub_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
   lv_obj_t *scrub_chart_obj_();
@@ -229,7 +229,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   lv_point_t hold_point_{};
 
   bool scrub_encoder_{false};  // encoder scrub in progress
-  bool scrub_touch_{false};    // touch scrub in progress (finger down)
+  bool scrub_touch_{false};    // a touched point is shown (finger down)
   lv_timer_t *scrub_hold_timer_{nullptr};
   lv_timer_t *scrub_revert_timer_{nullptr};
   lv_indev_t *scrub_indev_{nullptr};

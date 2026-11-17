@@ -45,7 +45,7 @@ Design every screen for all three inputs; none may be required alone. The hardwa
 | Swipe left or right | Next or previous sibling at the same depth: the next page of a carousel, the next item of a series. On a page that is itself a scrolling strip (hourly forecast) it scrolls the strip instead. |
 | Swipe up | Go deeper: open the detail of the current page, same as press. |
 | Swipe down | Back one level, same as long press. At the top level it opens the Settings list. |
-| Touch and hold 250 ms on a chart, then drag | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
+| Touch and hold 250 ms on a chart, then drag (as built: no drag, the hold shows the touched point) | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
 | Touch and hold 600 ms anywhere else | Open the Settings list (same as long press at the top level). |
 
 

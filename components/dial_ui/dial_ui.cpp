@@ -446,7 +446,7 @@ void DialUi::setup() {
   this->history_screen_.create();
   this->attach_events_(this->history_screen_.screen());
   lv_obj_t *chart = this->history_screen_.chart().obj();
-  for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
+  for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
     lv_obj_add_event_cb(chart, &DialUi::chart_event_cb_, c, this);
   this->scrub_hold_timer_ = lv_timer_create(&DialUi::scrub_hold_cb_, SCRUB_HOLD_MS, this);
   lv_timer_pause(this->scrub_hold_timer_);
@@ -467,7 +467,7 @@ void DialUi::setup() {
       this->energy_screen_.create();
       this->attach_events_(this->energy_screen_.screen());
       lv_obj_t *bars = this->energy_screen_.chart().obj();
-      for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
+      for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
         lv_obj_add_event_cb(bars, &DialUi::chart_event_cb_, c, this);
     }
   }
@@ -849,14 +849,12 @@ int DialUi::scrub_index_() const {
   return this->page_.kind == PageKind::ENERGY ? this->energy_screen_.scrub_index() : this->history_screen_.scrub_index();
 }
 
+// The point under the finger, as LVGL recorded it on LV_EVENT_PRESSED. It does not follow a drag
+// (lv_chart.c only updates it on press), so touch selects one point; there is no drag scrub
+// (user, 2026-11-17).
 int DialUi::scrub_pressed_index_() {
-  if (this->page_.kind != PageKind::ENERGY)
-    return this->history_screen_.chart().pressed_index();
-  if (this->scrub_indev_ == nullptr)
-    return -1;
-  lv_point_t p;
-  lv_indev_get_point(this->scrub_indev_, &p);  // the finger now, also while dragging
-  return this->energy_screen_.chart().index_at_x(p.x);
+  return this->page_.kind == PageKind::ENERGY ? this->energy_screen_.chart().pressed_index()
+                                              : this->history_screen_.chart().pressed_index();
 }
 
 int DialUi::scrub_latest_index_() const {
@@ -909,18 +907,11 @@ void DialUi::on_chart_event_(lv_event_t *e) {
     return;
   switch (lv_event_get_code(e)) {
     case LV_EVENT_PRESSED:
-      // A hold of 250 ms starts the scrub; a quick drag before that stays a swipe.
+      // A hold of 250 ms on a point shows it; a quick swipe before that stays a swipe.
       this->scrub_indev_ = indev;
       lv_indev_get_point(indev, &this->scrub_point_);
       lv_timer_reset(this->scrub_hold_timer_);
       lv_timer_resume(this->scrub_hold_timer_);
-      break;
-    case LV_EVENT_PRESSING:
-      if (this->scrub_touch_) {
-        int i = this->scrub_pressed_index_();
-        if (i >= 0 && i != this->scrub_index_())
-          this->scrub_to_(i);
-      }
       break;
     case LV_EVENT_RELEASED:
     case LV_EVENT_PRESS_LOST:
@@ -950,7 +941,7 @@ void DialUi::scrub_hold_cb_(lv_timer_t *t) {
   self->scrub_encoder_ = false;
   self->scrub_touch_ = true;
   lv_timer_pause(self->scrub_revert_timer_);
-  // The drag must not become a swipe: stop the chart's gestures reaching the screen.
+  // A finger moving after the hold must not become a swipe: stop the chart's gestures reaching the screen.
   lv_obj_remove_flag(self->scrub_chart_obj_(), LV_OBJ_FLAG_GESTURE_BUBBLE);
   int i = self->scrub_pressed_index_();
   self->scrub_to_(i >= 0 ? i : SCRUB_POINTS - 1);

@@ -14,7 +14,7 @@ void BarChart::create(lv_obj_t *parent, int32_t top) {
   lv_obj_set_size(box, W, H);
   lv_obj_align(box, LV_ALIGN_TOP_MID, 0, top);
 
-  // Clickable (the default): LVGL tracks the pressed bar for the touch scrub.
+  // Clickable (the default): LVGL records the touched bar.
   lv_obj_t *c = lv_chart_create(box);
   lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_size(c, W, PLOT_H);
@@ -89,18 +89,9 @@ void BarChart::highlight(int index) {
   lv_obj_invalidate(this->chart_);
 }
 
-int BarChart::index_at_x(int32_t x) const {
-  lv_area_t a;
-  lv_obj_get_coords(this->chart_, &a);
-  int32_t w = lv_area_get_width(&a);
-  if (w <= 0)
-    return -1;
-  int32_t dx = x - a.x1;
-  if (dx < 0)
-    dx = 0;
-  if (dx >= w)
-    dx = w - 1;
-  return static_cast<int>(dx * static_cast<int32_t>(N) / w);  // same split as lv_chart's BAR hit test
+int BarChart::pressed_index() const {
+  uint32_t id = lv_chart_get_pressed_point(this->chart_);
+  return id == LV_CHART_POINT_NONE ? -1 : static_cast<int>(id);
 }
 
 }  // namespace esphome::dial_ui

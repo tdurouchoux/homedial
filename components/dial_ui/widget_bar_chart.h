@@ -24,9 +24,8 @@ class BarChart {
   // The bar drawn in `accent`: the current hour when live, the scrubbed hour while scrubbing.
   // -1: none.
   void highlight(int index);
-  // Bar under screen x `x` (clamped to the first / last bar). LVGL's own pressed point is only
-  // updated on LV_EVENT_PRESSED, not while dragging (lv_chart.c), so the scrub uses this.
-  int index_at_x(int32_t x) const;
+  // Bar touched (recorded by LVGL on LV_EVENT_PRESSED), or -1.
+  int pressed_index() const;
   lv_obj_t *obj() const { return this->chart_; }
 
  protected:
