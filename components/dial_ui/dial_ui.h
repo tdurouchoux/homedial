@@ -118,7 +118,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   int current_luminosity_() const;
   void update_sleep_();
   void tick_(Tone tone = Tone::PAGE);
-  void apply_pitch_(int hz);
+  void set_tone_hz_(int hz);
+  void go_home_();  // double click: the first page of the carousel
   void save_settings_();
   void activate_row_(SettingsRow row);
   void open_adjust_(SettingsRow row);
@@ -177,7 +178,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ESPPreferenceObject pref_;
   int luminosity_{100};  // saved settings (adjust_spec defaults until loaded)
   int volume_{50};
-  int pitch_{1000};
+  uint32_t last_click_ms_{0};  // encoder short click time, for the double click (0 = none)
   int adjust_value_{0};  // value being edited on the Adjust page
   DetentAccel accel_;
   bool screen_off_state_{false};  // backlight off (sleep or Settings > Screen off)

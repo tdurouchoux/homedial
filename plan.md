@@ -13,7 +13,7 @@ the data contract in `contract.md`, and conventions in `CLAUDE.md`.
 | M4 | History: 24 h hourly means in RAM, TrendChart, encoder and touch scrub |
 | M5 | Weather now (icons, next-hour rain arc) and hourly forecast (`weather.get_forecasts`) |
 | M6 | Electricity (live power ring to the 6 kVA contract limit) |
-| M7 | Settings: luminosity, buzzer volume and pitch, screen off, power off |
+| M7 | Settings: luminosity, buzzer volume, screen off, power off |
 | M8 | Dim after 30 s, screen off after 60 s, wake on any input |
 | M9 | Energy: kWh per hour over the last 24 h from HA statistics, scrub like History, child of Electricity (2026-11-17; compile only, not yet checked on the device) |
 | Extra | Room icons, `flash_size: 8MB` |

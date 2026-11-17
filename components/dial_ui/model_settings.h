@@ -7,17 +7,11 @@
 
 namespace esphome::dial_ui {
 
-// BUZZER_PITCH is deactivated for now (the buzzer plays a fixed tone per interaction, see
-// dial_ui.cpp EVENT_TONES): it sits after the listed rows, so the list has SETTINGS_ROWS rows and
-// the Pitch row never shows. To bring it back, move it between BUZZER and SCREEN_OFF again,
-// set SETTINGS_ROWS to SETTINGS_ENUM_COUNT, and set EVENT_TONES to false.
-enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, SCREEN_OFF, POWER_OFF, EXIT, BUZZER_PITCH };
-constexpr size_t SETTINGS_ENUM_COUNT = 6;  // every row, listed or not
-constexpr size_t SETTINGS_ROWS = 5;        // rows shown in the list (BUZZER_PITCH is not)
+enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, SCREEN_OFF, POWER_OFF, EXIT };
+constexpr size_t SETTINGS_ROWS = 5;
 
 inline const char *settings_label(SettingsRow r) {
-  // "Pitch", not "Buzzer pitch": with its value ("6000Hz") it must fit the 144 px inside a row (user).
-  static const char *const L[SETTINGS_ENUM_COUNT] = {"Luminosity", "Buzzer vol.", "Screen off", "Power off", "Exit", "Pitch"};
+  static const char *const L[SETTINGS_ROWS] = {"Luminosity", "Buzzer vol.", "Screen off", "Power off", "Exit"};
   return L[static_cast<size_t>(r)];
 }
 
@@ -28,58 +22,33 @@ struct AdjustSpec {
   int max;
   int step;
   int def;
-  const char *unit;  // "%" or "Hz"
-  // Optional fixed list of values (ascending). When set, min/max/step are ignored and one
-  // detent moves one entry: used for pitch, where equal Hz steps do not sound equal.
-  const int *values{nullptr};
-  size_t count{0};
+  const char *unit;  // "%"
 };
 
 inline const AdjustSpec &adjust_spec(SettingsRow r) {
   // Luminosity never reaches 0 from Settings ("Screen off" does that).
   static const AdjustSpec LUM{"Luminosity", 10, 100, 5, 100, "%"};
   static const AdjustSpec VOL{"Buzzer volume", 0, 100, 10, 50, "%"};
-  // Tick pitch, 100 Hz to 6 kHz (user: above 6 kHz is unbearable, more range wanted at the low end),
-  // spaced roughly evenly to the ear. 1 kHz (the LEDC default) keeps the original sound.
-  static const int PITCHES[] = {100,  150,  200,  250,  300,  400,  500,  600,  800,
-                                1000, 1200, 1500, 2000, 2500, 3000, 4000, 5000, 6000};
-  static const AdjustSpec PITCH{"Buzzer pitch", 100, 6000, 0, 1000, "Hz", PITCHES, sizeof(PITCHES) / sizeof(int)};
   if (r == SettingsRow::BUZZER)
     return VOL;
-  if (r == SettingsRow::BUZZER_PITCH)
-    return PITCH;
   return LUM;
 }
 
 inline bool is_adjustable(SettingsRow r) {
-  return r == SettingsRow::LUMINOSITY || r == SettingsRow::BUZZER || r == SettingsRow::BUZZER_PITCH;
+  return r == SettingsRow::LUMINOSITY || r == SettingsRow::BUZZER;
 }
 
 // Number of positions on the Adjust ring, and the value at / index of a position.
-inline size_t setting_positions(const AdjustSpec &s) {
-  return s.values != nullptr ? s.count : static_cast<size_t>((s.max - s.min) / s.step + 1);
-}
+inline size_t setting_positions(const AdjustSpec &s) { return static_cast<size_t>((s.max - s.min) / s.step + 1); }
 inline int setting_at(const AdjustSpec &s, size_t i) {
   size_t n = setting_positions(s);
   if (i >= n)
     i = n - 1;
-  return s.values != nullptr ? s.values[i] : s.min + static_cast<int>(i) * s.step;
+  return s.min + static_cast<int>(i) * s.step;
 }
-inline size_t setting_index(const AdjustSpec &s, int v) {
-  if (s.values == nullptr)
-    return static_cast<size_t>((v - s.min) / s.step);
-  size_t best = 0;
-  for (size_t i = 1; i < s.count; i++) {
-    int d = s.values[i] - v, db = s.values[best] - v;
-    if ((d < 0 ? -d : d) < (db < 0 ? -db : db))
-      best = i;
-  }
-  return best;
-}
+inline size_t setting_index(const AdjustSpec &s, int v) { return static_cast<size_t>((v - s.min) / s.step); }
 
 inline int clamp_setting(const AdjustSpec &s, int v) {
-  if (s.values != nullptr)
-    return s.values[setting_index(s, v)];  // nearest listed value
   if (v < s.min)
     return s.min;
   if (v > s.max)

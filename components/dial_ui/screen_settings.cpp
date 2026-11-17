@@ -66,10 +66,9 @@ void ScreenSettings::create() {
   this->draw_();
 }
 
-void ScreenSettings::set_values(int luminosity, int volume, int pitch) {
+void ScreenSettings::set_values(int luminosity, int volume) {
   this->values_[static_cast<size_t>(SettingsRow::LUMINOSITY)] = luminosity;
   this->values_[static_cast<size_t>(SettingsRow::BUZZER)] = volume;
-  this->values_[static_cast<size_t>(SettingsRow::BUZZER_PITCH)] = pitch;
   this->draw_();
 }
 

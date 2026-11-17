@@ -27,7 +27,7 @@ class ScreenAdjust {
   lv_obj_t *value_label_{nullptr};
   lv_obj_t *unit_{nullptr};
   lv_obj_t *ok_{nullptr};
-  AdjustSpec spec_{"", 0, 100, 1, 0, "", nullptr, 0};
+  AdjustSpec spec_{"", 0, 100, 1, 0, ""};
   int value_{0};
 };
 
