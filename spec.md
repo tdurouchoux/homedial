@@ -97,7 +97,7 @@ See `contract.md` for the ESPHome <-> UI contract.
 
 ## Room icons
 
-Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon). The Room page shows the name and icon larger (20 px) than Sensor and History (16 px).
+Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon). The Room page shows the name at 16 px with an 18 px icon (Sensor and History: 16 px text, 16 px icon).
 
 ### Arc scales
 

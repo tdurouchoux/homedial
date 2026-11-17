@@ -2,7 +2,7 @@
 
 namespace esphome::dial_ui {
 
-static constexpr int32_t NAME_TOP = 28;  // 20 px name line (larger than Sensor/History)
+static constexpr int32_t NAME_TOP = 29;  // 16 px name, 18 px icon (Sensor/History: 16 px icon)
 static constexpr int32_t SLOT_W = 84;    // >= 82 (design touch target)
 static constexpr int32_t SLOT_H = 62;    // >= 58
 static constexpr int32_t LABEL_H = 18;   // label line above the value
@@ -35,7 +35,7 @@ static void layout(size_t count, SlotPos *pos, const lv_font_t **font) {
 
 void ScreenRoom::create(const Room &room) {
   this->screen_ = create_screen();
-  this->name_.create(this->screen_, DIALED_FONT_TITLE, NAME_TOP, true);
+  this->name_.create(this->screen_, DIALED_FONT_BODY, NAME_TOP, true);
   this->name_.set(room.name, room.icon);
 
   this->slot_count_ = room.readings.size() > METRIC_COUNT ? METRIC_COUNT : room.readings.size();

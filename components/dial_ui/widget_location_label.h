@@ -12,26 +12,26 @@ extern "C" {
 extern const lv_image_dsc_t dialed_room_living_room_16, dialed_room_bedroom_16, dialed_room_kitchen_16,
     dialed_room_bathroom_16, dialed_room_office_16, dialed_room_garage_16, dialed_room_garden_16,
     dialed_room_other_16;
-// Same glyphs at 20 px (Room page).
-extern const lv_image_dsc_t dialed_room_living_room_20, dialed_room_bedroom_20, dialed_room_kitchen_20,
-    dialed_room_bathroom_20, dialed_room_office_20, dialed_room_garage_20, dialed_room_garden_20,
-    dialed_room_other_20;
+// Same glyphs at 18 px (Room page).
+extern const lv_image_dsc_t dialed_room_living_room_18, dialed_room_bedroom_18, dialed_room_kitchen_18,
+    dialed_room_bathroom_18, dialed_room_office_18, dialed_room_garage_18, dialed_room_garden_18,
+    dialed_room_other_18;
 }
 
 namespace esphome::dial_ui {
 
 static constexpr int32_t LOCATION_LABEL_W = 120;
-static constexpr int32_t LOCATION_LABEL_LARGE_W = 150;  // Room page: 20 px name and icon, still inside the circle at y = 28
+static constexpr int32_t LOCATION_LABEL_LARGE_W = 136;  // Room page: 16 px name, 18 px icon, still inside the circle at y = 28
 static constexpr int32_t ROOM_ICON_GAP = 6;
 
 // Room icon id: 0 = none, 1..8 = living room, bedroom, kitchen, bathroom, office, garage, garden,
 // other (design RoomIcon order).
 inline const lv_image_dsc_t *room_icon_src(uint8_t id, bool large = false) {
-  static const lv_image_dsc_t *const ICONS_20[] = {
-      &dialed_room_living_room_20, &dialed_room_bedroom_20, &dialed_room_kitchen_20, &dialed_room_bathroom_20,
-      &dialed_room_office_20,      &dialed_room_garage_20,  &dialed_room_garden_20,  &dialed_room_other_20};
+  static const lv_image_dsc_t *const ICONS_18[] = {
+      &dialed_room_living_room_18, &dialed_room_bedroom_18, &dialed_room_kitchen_18, &dialed_room_bathroom_18,
+      &dialed_room_office_18,      &dialed_room_garage_18,  &dialed_room_garden_18,  &dialed_room_other_18};
   if (large)
-    return (id >= 1 && id <= 8) ? ICONS_20[id - 1] : nullptr;
+    return (id >= 1 && id <= 8) ? ICONS_18[id - 1] : nullptr;
   static const lv_image_dsc_t *const ICONS[] = {
       &dialed_room_living_room_16, &dialed_room_bedroom_16, &dialed_room_kitchen_16, &dialed_room_bathroom_16,
       &dialed_room_office_16,      &dialed_room_garage_16,  &dialed_room_garden_16,  &dialed_room_other_16};
@@ -40,7 +40,7 @@ inline const lv_image_dsc_t *room_icon_src(uint8_t id, bool large = false) {
 
 class LocationLabel {
  public:
-  // `large`: the Room page's bigger line (20 px icon, wider line); see LOCATION_LABEL_LARGE_W.
+  // `large`: the Room page's bigger line (18 px icon, wider line); see LOCATION_LABEL_LARGE_W.
   void create(lv_obj_t *parent, const lv_font_t *font, int32_t top, bool large = false) {
     this->large_ = large;
     this->width_ = large ? LOCATION_LABEL_LARGE_W : LOCATION_LABEL_W;
@@ -74,7 +74,7 @@ class LocationLabel {
       lv_obj_add_flag(this->icon_, LV_OBJ_FLAG_HIDDEN);  // no icon: the name is centred alone
     }
     // The name takes its own width, up to what is left of the 120 px line; longer ends in "...".
-    int32_t max_w = this->width_ - (src != nullptr ? (this->large_ ? 20 : DIALED_ICON_S) + ROOM_ICON_GAP : 0);
+    int32_t max_w = this->width_ - (src != nullptr ? (this->large_ ? 18 : DIALED_ICON_S) + ROOM_ICON_GAP : 0);
     lv_label_set_text(this->name_, name.c_str());
     lv_obj_set_width(this->name_, LV_SIZE_CONTENT);
     lv_obj_update_layout(this->name_);

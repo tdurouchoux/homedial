@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Generates the dial_ui icon images from the design SVGs (the design stays the single source of truth):
 //   design/components/WeatherIcon/preview.html -> components/dial_ui/weather_icons.c (48 and 32 px)
-//   design/components/RoomIcon/preview.html    -> components/dial_ui/room_icons.c    (16 and 20 px)
+//   design/components/RoomIcon/preview.html    -> components/dial_ui/room_icons.c    (16 and 18 px)
 //   design/components/MetricIcon/preview.html  -> components/dial_ui/metric_icons.c  (12, 14, 16 px)
 //
 // Each SVG is rendered by Chromium (Playwright) white-on-black at its native size and stored as an
@@ -33,8 +33,8 @@ const SETS = [
     names: ['living_room', 'bedroom', 'kitchen', 'bathroom', 'office', 'garage', 'garden', 'other'],
     sizes: [16],
     // Extra sizes rendered from the 16 px SVGs (the 16 px grid scales through its viewBox):
-    // 20 px = the larger room name line on the Room page.
-    scaled: [20],
+    // 18 px = the larger room name line on the Room page.
+    scaled: [18],
   },
   {
     src: 'design/components/MetricIcon/preview.html',
