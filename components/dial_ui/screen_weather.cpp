@@ -5,10 +5,10 @@
 namespace esphome::dial_ui {
 
 // Tops from design ScreenWeather.
-static constexpr int32_t ICON_TOP = 34;
-static constexpr int32_t TEMP_TOP = 84;
-static constexpr int32_t WORD_TOP = 142;
-static constexpr int32_t RAIN_TOP = 172;
+static constexpr int32_t ICON_TOP = 41;  // design 34, moved down to clear the scale label
+static constexpr int32_t TEMP_TOP = 90;
+static constexpr int32_t WORD_TOP = 148;
+static constexpr int32_t RAIN_TOP = 177;
 
 void ScreenWeather::create() {
   this->screen_ = create_screen();
