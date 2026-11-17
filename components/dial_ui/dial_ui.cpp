@@ -461,7 +461,7 @@ void DialUi::setup() {
   }
 
   if (this->has_power_) {
-    this->power_screen_.create(this->power_limit_w_);
+    this->power_screen_.create(this->power_limit_w_, this->has_energy_);
     this->attach_events_(this->power_screen_.screen());
     if (this->has_energy_) {
       this->energy_screen_.create();
@@ -790,6 +790,8 @@ void DialUi::on_event_(lv_event_t *e) {
           this->open_metric_(this->page_.room, static_cast<size_t>(slot));  // tap on a reading
       } else if (from_touch && this->page_.kind == PageKind::SENSOR && target == this->visible_sensor_()->value_obj()) {
         this->nav_(NavAction::OPEN);  // tap on the value: History (only if the metric keeps history)
+      } else if (from_touch && this->page_.kind == PageKind::POWER && target == this->power_screen_.value_obj()) {
+        this->nav_(NavAction::OPEN);  // tap on the power value: Energy (only if configured)
       }
       break;
     case LV_EVENT_LONG_PRESSED:

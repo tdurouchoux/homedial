@@ -11,7 +11,6 @@ static constexpr int32_t METRIC_TOP = 63;
 static constexpr int32_t VALUE_TOP = 86;
 static constexpr int32_t TREND_TOP = 152;
 static constexpr int32_t STATUS_TOP = 186;
-static constexpr int32_t VALUE_TAP_EXTRA = DIALED_SPACE_3;  // added around the value for the tap (12 px)
 static constexpr size_t VALUE_XL_MAX_CHARS = 5;  // longer readings use value-l (design ArcGauge)
 
 void ScreenSensor::create() {
@@ -20,13 +19,7 @@ void ScreenSensor::create() {
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
-  // A tap on the value opens the metric's History (spec.md), like a tap on a Room reading.
-  lv_obj_add_flag(this->value_, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(this->value_, LV_OBJ_FLAG_EVENT_BUBBLE);  // the tap reaches the screen handler
-  lv_obj_set_ext_click_area(this->value_, VALUE_TAP_EXTRA);
-  lv_obj_set_style_radius(this->value_, DIALED_RADIUS_MD, LV_PART_MAIN);
-  lv_obj_set_style_bg_color(this->value_, DIALED_SURFACE_2, LV_STATE_PRESSED);
-  lv_obj_set_style_bg_opa(this->value_, LV_OPA_COVER, LV_STATE_PRESSED);
+  make_tappable(this->value_);  // a tap opens the metric's History (spec.md)
   this->trend_.create(this->screen_, TREND_TOP);
   this->status_.create(this->screen_, STATUS_TOP);
   this->dots_.create(this->screen_);
