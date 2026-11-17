@@ -8,14 +8,15 @@ Product decisions for the Dial UI. Look and feel, components and the input vocab
 | --- | --- | --- | --- |
 | 0 | Room summary (one per room) | ScreenRoom | 1 to 3 readings |
 | 0 | Weather now | ScreenWeather | rain arc = next 60 min |
-| 0 | Electricity | ScreenPower | live power, no children |
+| 0 | Electricity | ScreenPower | live power |
+| 1 | Energy (last 24 h) | ScreenEnergy | child of Electricity; kWh per hour, scrub like History; only when `power: energy:` is configured |
 | 1 | Sensor (one per metric of a room) | ScreenSensor | Temperature, Humidity, Air quality, each only if the room has the sensor |
 | 2 | History (one per metric of a room) | ScreenHistory | scrub |
 | 2 | Hourly forecast | ScreenForecast (hourly strip) | opened from Weather now |
 | S | Settings list | ListMenu | not in the carousel |
 | S+1 | Adjust luminosity, Adjust buzzer volume | ScreenAdjust | opened from Settings |
 
-Dropped for now: Energy history (it would need on-device data storage); it may return later.
+Energy history returned on 2026-11-16 as the child page of Electricity ("Energy", the last 24 h like History since 2026-11-17): the hourly figures come from Home Assistant's statistics, so the device stores nothing (see "Energy" below).
 
 ## Navigation graph
 
@@ -26,7 +27,7 @@ Carousel (level 0, turn / swipe left-right, no wrap, boots on the first room):
 Room summary  --press / swipe up / tap a reading-->  Sensor pages (turn / swipe between metrics)
 Sensor page   --press / swipe up-->                  History of that metric in that room
 Weather now   --press / swipe up-->                  Hourly forecast
-Electricity                                          (no children)
+Electricity   --press / swipe up-->                  Energy, last 24 h (only if configured)
 
 Settings (above the carousel):
   opened from level 0 by long press / touch hold / swipe down; closed by swipe up / long press
@@ -37,12 +38,13 @@ Settings (above the carousel):
 
 - One table is shared by encoder and touch; both reach every page.
 - **Sibling move** (encoder turn, swipe left/right): next or previous page at the same level. Level 0 stops at both ends. On Sensor pages it moves between the room's metrics.
-- **Deeper** (encoder press, swipe up, or a tap on the target): open the page's child. On a Room page, a tap on a reading opens that metric's Sensor page directly; a press opens the first metric.
+- **Deeper** (encoder press, swipe up, or a tap on the target): open the page's child. On a Room page, a tap on a reading opens that metric's Sensor page directly; a press opens the first metric. On a Sensor page, a tap on the value opens that metric's History, when the metric has `history: true`; on Electricity, a tap on the power value opens Energy, when it is configured (both added 2026-11-17, user).
 - **Back** (encoder long press 600 ms, swipe down): up one level. From an editor or a scrub it cancels.
 - **Leaving Settings** (decided 2026-11-15): Settings opens with a downward slide from above the carousel, so it closes with **swipe up** (the slide goes back up) or an encoder long press, and returns to the page you left. Swipe down does nothing on Settings. This differs from `design/README.md`, where swipe down is always back.
 - **Settings**: from level 0, the back gesture (long press, swipe down) or a 600 ms touch hold opens the Settings list.
+- **Energy** (level 1, no dots): an interaction page like History: turn and swipe act only inside it (scrub) and never change page; back (long press, swipe down) returns to Electricity.
 - **Level 2 interaction pages** (History, Hourly forecast, Adjust): turn and swipe act only inside the page and never change page.
-  - History: press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on the chart, then drag.
+  - History (and Energy, same rules): press starts the scrub on the latest sample, turn moves the cursor, press or long press ends it. Touch: hold 250 ms on a point to show it; the readout stays 2 s after release. **No drag** (user, 2026-11-17): the drag never moved the cursor on the device and is not wanted; touch picks one point, the dial moves along the chart. This differs from `design/` (hold, then drag).
   - Hourly forecast: turn moves the focus one hour; drag scrolls and snaps; tap centres a column. Encoder steps and taps scroll the strip smoothly (decided after testing: an instant jump was hard to follow).
   - Adjust: turn changes the value by one step, press saves, long press cancels.
 - **No page-change animation** (decided 2026-11-15, after testing on the device): pages switch instantly, including opening and leaving Settings. The 200 ms slide felt laggy. Instead, two light motions (only small areas redraw): the page dots' active bar glides to the new page in 150 ms (carousel and Sensor siblings), and a Sensor page's ring sweeps from 0 to its value in 250 ms on arrival. Vertical moves nudge the arriving content the way the finger went (150 ms, ease-out): a Sensor page's value rises 12 px when going deeper; a Room page's readings come 8 px from above when going back to it (from below when leaving Settings), 30 ms apart; Settings content drops 16 px into place when it opens. Sideways moves (room to room, metric to metric) nudge the arriving content 12 px from the side the finger came from (turning clockwise counts as a swipe left): the room name and readings on a Room page, staggered 30 ms; the metric name, value and unit on a Sensor page (the room line stays). This differs from `design/README.md` ("Motion").
@@ -72,7 +74,7 @@ Rows (labels 12 characters or fewer): Luminosity, Buzzer vol., Pitch, Screen off
 
 ## Design alignment
 
-`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy marked as a future page, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
+`design/` has been updated to match this spec: soft alerts (ScreenAlert marked unused), no room-to-room swipe on History, Energy as a child of Electricity, Settings opened from the top level, and the sleep timings. The `preview.html` files for Alert and Energy were not changed.
 
 ## Iteration scope
 
@@ -101,7 +103,20 @@ Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyph
 
 - Contract limit **6 kVA (6000 W)** (decided 2026-11-15), set as `power: contract_limit` in `packages/ui.yaml`. Ring 0 to the limit; WARN from 80 %, ALERT from 100 % (ring full).
 - Live power entity: `power_entity` substitution in `homedial.yaml` (placeholder until set). Shown in W up to 9999, then kW with one decimal.
+- Energy is a child of Electricity, not a carousel page, so it does not count toward the 7.
 - The carousel holds at most 7 pages (rooms + Weather now + Electricity), the most the page dots fit: up to 5 rooms. `esphome config` rejects more.
+
+## Energy
+
+Decided 2026-11-16, revised 2026-11-17 (the earlier blocker, on-device storage, went away with the History backfill from HA statistics):
+- **Page**: child of Electricity (press / swipe up), no page dots, back returns. Shown only when `power: energy:` is set in `packages/ui.yaml`.
+- **Mirrors the History page** (user, 2026-11-17): same layout and the same 25-point window, -24 h to now (24 closed hours + the current one), one bar per hour of energy used. "Energy" on the title line (top 28), "kWh • 24 h" (top 46), the value (top 62), BarChart (top 98, an `lv_chart`), "-24h" / "now" (top 174). No status line.
+- **Live readout**: the total of the window in kWh. **Scrub**, as on History: press starts on the latest bar, turn moves one hour, press or long press ends; touch: hold 250 ms on a bar to show it (no drag); the readout stays 2 s after release. The scrubbed bar is lit (`accent`), the line reads "kWh • 21:00" ("now" for the current hour) and the value is that hour's kWh ("--" if missing).
+- **Bars**: `line`; the lit bar `accent` (the current hour when not scrubbing); hours without data 2 px `track` stubs. The axis maximum is the smallest of 1, 1.5, 2, 3, 4, 5, 6, 8 (times a power of ten) that holds the tallest bar, never below 1 kWh.
+- **Numbers**: kWh with two decimals below 10 (an hour is often under 1 kWh), one up to 99.9, whole above.
+- No cost, no limit line (bars are never `warn`), no change against yesterday (dropped 2026-11-16: not useful).
+- **Source**: one cumulative energy counter (`energy_entity` in `homedial.yaml`, state_class `total_increasing`). Closed hours are HA's hourly `change`, converted to kWh by HA; the open hour is the live counter minus its value at the start of the hour. The live counter is scaled to kWh in `packages/ha_entities.yaml` (the user's entity is in Wh: `multiply: 0.001`; fixed 2026-11-17, bars were 1000 times too high). Details and the request in `contract.md` §5.3.
+- **Offline**: the total reads "--"; the bars keep the hours already known.
 
 ## Room metrics
 

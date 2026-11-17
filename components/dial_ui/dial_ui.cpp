@@ -2,6 +2,7 @@
 
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#include "esphome/core/time.h"
 #ifdef USE_API
 #include "esphome/components/api/api_server.h"
 #endif
@@ -149,6 +150,17 @@ void DialUi::set_power(sensor::Sensor *power, float limit_w) {
   });
 }
 
+void DialUi::set_energy(sensor::Sensor *energy, const char *statistic_id) {
+  this->has_energy_ = true;
+  this->energy_statistic_id_ = statistic_id;
+  energy->add_on_state_callback([this](float x) {
+    if (std::isnan(this->energy_.live()))
+      ESP_LOGI(TAG, "Energy counter first value: %.3f", x);
+    this->energy_.set_live(x);
+    this->energy_dirty_ = true;
+  });
+}
+
 void DialUi::load_forecast(JsonVariantConst rows) {
   this->forecast_pending_ = false;
   if (!rows.is<JsonArrayConst>()) {
@@ -225,6 +237,82 @@ void DialUi::load_history(JsonVariantConst series) {
 void DialUi::history_request_failed(const std::string &error) {
   this->history_pending_ = false;
   ESP_LOGW(TAG, "History request failed: %s", error.c_str());
+}
+
+// Energy backfill (contract.md §5.3): `rows` is [[hour_epoch, change_kwh, end_counter_or_null], ...].
+void DialUi::load_energy(JsonVariantConst rows) {
+  this->energy_pending_ = false;
+  if (!rows.is<JsonArrayConst>()) {
+    std::string raw;
+    serializeJson(rows, raw);
+    ESP_LOGW(TAG, "Energy response is not a list; check the response_template (contract.md §5.3). Got: %.200s",
+             raw.c_str());
+    return;
+  }
+  int64_t now = this->now_epoch_();
+  if (now < 0)
+    return;
+  this->energy_.advance(now);  // the window must end at the current hour
+  unsigned n = 0;
+  for (JsonVariantConst row : rows.as<JsonArrayConst>()) {
+    if (!row.is<JsonArrayConst>() || row.size() < 2 || row[1].isNull())
+      continue;
+    double state = row.size() > 2 && !row[2].isNull() ? row[2].as<double>() : static_cast<double>(NAN);
+    this->energy_.set_closed(row[0].as<int64_t>(), row[1].as<double>(), state);
+    n++;
+  }
+  ESP_LOGI(TAG, "Energy received from Home Assistant: %u hours; 24 h total %.2f kWh, counter %.3f, hour start %.3f",
+           n, this->energy_.total(), this->energy_.live(), this->energy_.base());
+  if (n == 0)
+    ESP_LOGW(TAG, "No hourly statistics for '%s': it needs a state_class (total_increasing) and kWh as unit. In HA "
+                  "Developer tools > Statistics, check that the entity is listed without an error",
+             this->energy_statistic_id_.c_str());
+  this->energy_dirty_ = true;
+}
+
+void DialUi::energy_request_failed(const std::string &error) {
+  this->energy_pending_ = false;
+  ESP_LOGW(TAG, "Energy request failed: %s", error.c_str());
+}
+
+// Once per connection, then once an hour after HA has compiled the previous hour's statistics
+// (it does so a few minutes past the hour; a request before that is repeated at minute 6).
+void DialUi::maybe_request_energy_() {
+  if (!this->has_energy_request_ || !this->online_last_ || this->energy_statistic_id_.empty())
+    return;
+  int64_t now = this->now_epoch_();
+  if (now < 0)
+    return;
+  uint32_t ms = millis();
+  if (this->energy_pending_) {
+    if (ms - this->energy_requested_ms_ < 30000)
+      return;
+    this->energy_pending_ = false;  // no answer: HA did not run the action
+    ESP_LOGW(TAG, "No answer to the energy request after 30 s. Check \"Allow the device to perform Home "
+                  "Assistant actions\" and the HA log for a rejected recorder.get_statistics call.");
+  }
+  int64_t hour = now / 3600;
+  bool late = now % 3600 >= 6 * 60;
+  bool first = this->energy_req_hour_ < 0;
+  bool due = hour != this->energy_req_hour_ ? (first || late) : (late && !this->energy_req_late_);
+  if (!due)
+    return;
+  this->energy_req_hour_ = hour;
+  this->energy_req_late_ = late;
+  this->energy_pending_ = true;
+  this->energy_requested_ms_ = ms;
+  ESP_LOGI(TAG, "Requesting hourly energy (recorder.get_statistics) for %s", this->energy_statistic_id_.c_str());
+  this->energy_request_trigger_.trigger(this->energy_statistic_id_);
+}
+
+void DialUi::refresh_energy_() {
+  int64_t now = this->now_epoch_();
+  if (now >= 0 && this->energy_.advance(now))
+    this->energy_dirty_ = true;  // the hour rolled over: the window moved
+  if (this->energy_dirty_ && this->page_.kind == PageKind::ENERGY) {
+    this->energy_dirty_ = false;
+    this->energy_screen_.update(this->energy_, this->online_last_);
+  }
 }
 
 void DialUi::redraw_history_views_() {
@@ -358,7 +446,7 @@ void DialUi::setup() {
   this->history_screen_.create();
   this->attach_events_(this->history_screen_.screen());
   lv_obj_t *chart = this->history_screen_.chart().obj();
-  for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
+  for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
     lv_obj_add_event_cb(chart, &DialUi::chart_event_cb_, c, this);
   this->scrub_hold_timer_ = lv_timer_create(&DialUi::scrub_hold_cb_, SCRUB_HOLD_MS, this);
   lv_timer_pause(this->scrub_hold_timer_);
@@ -373,8 +461,15 @@ void DialUi::setup() {
   }
 
   if (this->has_power_) {
-    this->power_screen_.create(this->power_limit_w_);
+    this->power_screen_.create(this->power_limit_w_, this->has_energy_);
     this->attach_events_(this->power_screen_.screen());
+    if (this->has_energy_) {
+      this->energy_screen_.create();
+      this->attach_events_(this->energy_screen_.screen());
+      lv_obj_t *bars = this->energy_screen_.chart().obj();
+      for (lv_event_code_t c : {LV_EVENT_PRESSED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST})
+        lv_obj_add_event_cb(bars, &DialUi::chart_event_cb_, c, this);
+    }
   }
 
   this->hold_timer_ = lv_timer_create(&DialUi::hold_timer_cb_, SETTINGS_HOLD_MS, this);
@@ -407,10 +502,13 @@ void DialUi::loop() {
         r.dirty = true;
     this->weather_dirty_ = true;
     this->power_dirty_ = true;
-    if (online)
+    this->energy_dirty_ = true;
+    if (online) {
       this->maybe_request_forecast_(true);  // on connect
-    else
+    } else {
       this->history_requested_ = false;  // ask again on the next connection (fills the gap)
+      this->energy_req_hour_ = -1;
+    }
   }
   this->refresh_();
   if (this->has_power_ && this->power_dirty_) {  // power at 1 Hz (design)
@@ -419,6 +517,10 @@ void DialUi::loop() {
   }
   this->maybe_request_forecast_(false);  // every 30 min
   this->maybe_request_history_();
+  if (this->has_energy_) {
+    this->refresh_energy_();
+    this->maybe_request_energy_();
+  }
   if (this->history_pending_ && now - this->history_requested_ms_ >= 30000) {
     this->history_pending_ = false;  // no answer: HA did not run the action
     ESP_LOGW(TAG, "No answer to the history request after 30 s. Check \"Allow the device to perform Home "
@@ -483,6 +585,7 @@ NavShape DialUi::shape_() const {
   NavShape s{this->rooms_.size(), this->readings_per_room_.data(), this->history_mask_.data()};
   s.has_weather = this->has_weather_;
   s.has_power = this->has_power_;
+  s.has_energy = this->has_energy_;
   return s;
 }
 
@@ -557,6 +660,12 @@ void DialUi::show_(const Page &page, Slide slide) {
       this->load_(this->power_screen_.screen(), slide);
       break;
     }
+    case PageKind::ENERGY:
+      this->energy_screen_.update(this->energy_, this->online_last_);
+      this->energy_dirty_ = false;
+      this->energy_screen_.nudge(arrival_dy(slide, NUDGE_VALUE_PX));
+      this->load_(this->energy_screen_.screen(), slide);
+      break;
     case PageKind::FORECAST: {
       this->maybe_request_forecast_(false);  // refresh if older than 30 min
       int64_t now = this->now_epoch_();
@@ -654,7 +763,7 @@ void DialUi::on_event_(lv_event_t *e) {
   if ((this->page_.kind == PageKind::SETTINGS || this->page_.kind == PageKind::ADJUST) &&
       this->settings_event_(e, code, from_encoder))
     return;
-  if (this->page_.kind == PageKind::HISTORY && this->history_event_(e, code, from_encoder))
+  if (is_scrub_page_(this->page_.kind) && this->scrub_event_(e, code, from_encoder))
     return;
   if (this->page_.kind == PageKind::FORECAST && code == LV_EVENT_KEY) {
     // Turn moves the focus one hour; it never changes page here.
@@ -679,6 +788,10 @@ void DialUi::on_event_(lv_event_t *e) {
         int slot = this->room_screens_[this->page_.room].slot_index(target);
         if (slot >= 0)
           this->open_metric_(this->page_.room, static_cast<size_t>(slot));  // tap on a reading
+      } else if (from_touch && this->page_.kind == PageKind::SENSOR && target == this->visible_sensor_()->value_obj()) {
+        this->nav_(NavAction::OPEN);  // tap on the value: History (only if the metric keeps history)
+      } else if (from_touch && this->page_.kind == PageKind::POWER && target == this->power_screen_.value_obj()) {
+        this->nav_(NavAction::OPEN);  // tap on the power value: Energy (only if configured)
       }
       break;
     case LV_EVENT_LONG_PRESSED:
@@ -727,15 +840,40 @@ void DialUi::on_event_(lv_event_t *e) {
   }
 }
 
-// ---- History scrub (design ScreenHistory; spec.md "Level 2 interaction pages") ----
+// ---- Scrub on History and Energy (design ScreenHistory; spec.md "Level 2 interaction pages") ----
+// Both pages show the same 25-point window (HourlyHistory::POINTS == EnergyHistory::POINTS).
+static_assert(HourlyHistory::POINTS == EnergyHistory::POINTS, "History and Energy share the scrub range");
+static constexpr int SCRUB_POINTS = static_cast<int>(HourlyHistory::POINTS);
 
-// Returns true when the event was consumed by the History page.
-bool DialUi::history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder) {
+lv_obj_t *DialUi::scrub_chart_obj_() {
+  return this->page_.kind == PageKind::ENERGY ? this->energy_screen_.chart().obj() : this->history_screen_.chart().obj();
+}
+
+int DialUi::scrub_index_() const {
+  return this->page_.kind == PageKind::ENERGY ? this->energy_screen_.scrub_index() : this->history_screen_.scrub_index();
+}
+
+// The point under the finger, as LVGL recorded it on LV_EVENT_PRESSED. It does not follow a drag
+// (lv_chart.c only updates it on press), so touch selects one point; there is no drag scrub
+// (user, 2026-11-17).
+int DialUi::scrub_pressed_index_() {
+  return this->page_.kind == PageKind::ENERGY ? this->energy_screen_.chart().pressed_index()
+                                              : this->history_screen_.chart().pressed_index();
+}
+
+int DialUi::scrub_latest_index_() const {
+  if (this->page_.kind == PageKind::ENERGY)
+    return this->energy_.latest_index();
+  return this->rooms_[this->page_.room].readings[this->page_.index].history.latest_index();
+}
+
+// Returns true when the event was consumed by the History or Energy page.
+bool DialUi::scrub_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder) {
   if (code == LV_EVENT_KEY) {  // turn never changes page here; while scrubbing it moves the cursor
     if (this->scrub_encoder_) {
-      int i = this->history_screen_.scrub_index();
+      int i = this->scrub_index_();
       uint32_t key = lv_event_get_key(e);
-      if (key == LV_KEY_RIGHT && i + 1 < static_cast<int>(HourlyHistory::POINTS))
+      if (key == LV_KEY_RIGHT && i + 1 < SCRUB_POINTS)
         this->scrub_to_(i + 1);
       else if (key == LV_KEY_LEFT && i > 0)
         this->scrub_to_(i - 1);
@@ -746,10 +884,9 @@ bool DialUi::history_event_(lv_event_t *e, lv_event_code_t code, bool from_encod
     if (this->scrub_encoder_) {
       this->end_scrub_();  // press ends the scrub
     } else {
-      const Reading &r = this->rooms_[this->page_.room].readings[this->page_.index];
-      int latest = r.history.latest_index();
+      int latest = this->scrub_latest_index_();
       this->scrub_encoder_ = true;  // press starts the scrub on the latest sample
-      this->scrub_to_(latest >= 0 ? latest : static_cast<int>(HourlyHistory::POINTS) - 1);
+      this->scrub_to_(latest >= 0 ? latest : SCRUB_POINTS - 1);
     }
     return true;
   }
@@ -767,32 +904,25 @@ void DialUi::chart_event_cb_(lv_event_t *e) {
 }
 
 void DialUi::on_chart_event_(lv_event_t *e) {
-  if (this->page_.kind != PageKind::HISTORY)
+  if (!is_scrub_page_(this->page_.kind))
     return;
   lv_indev_t *indev = lv_indev_active();
   if (indev == nullptr || lv_indev_get_type(indev) != LV_INDEV_TYPE_POINTER)
     return;
   switch (lv_event_get_code(e)) {
     case LV_EVENT_PRESSED:
-      // A hold of 250 ms starts the scrub; a quick drag before that stays a swipe.
+      // A hold of 250 ms on a point shows it; a quick swipe before that stays a swipe.
       this->scrub_indev_ = indev;
       lv_indev_get_point(indev, &this->scrub_point_);
       lv_timer_reset(this->scrub_hold_timer_);
       lv_timer_resume(this->scrub_hold_timer_);
-      break;
-    case LV_EVENT_PRESSING:
-      if (this->scrub_touch_) {
-        int i = this->history_screen_.chart().pressed_index();
-        if (i >= 0 && i != this->history_screen_.scrub_index())
-          this->scrub_to_(i);
-      }
       break;
     case LV_EVENT_RELEASED:
     case LV_EVENT_PRESS_LOST:
       lv_timer_pause(this->scrub_hold_timer_);
       if (this->scrub_touch_) {
         this->scrub_touch_ = false;
-        lv_obj_add_flag(this->history_screen_.chart().obj(), LV_OBJ_FLAG_GESTURE_BUBBLE);
+        lv_obj_add_flag(this->scrub_chart_obj_(), LV_OBJ_FLAG_GESTURE_BUBBLE);
         lv_timer_reset(this->scrub_revert_timer_);  // keep the readout 2 s, then back to live
         lv_timer_resume(this->scrub_revert_timer_);
       }
@@ -805,7 +935,7 @@ void DialUi::on_chart_event_(lv_event_t *e) {
 void DialUi::scrub_hold_cb_(lv_timer_t *t) {
   auto *self = static_cast<DialUi *>(lv_timer_get_user_data(t));
   lv_timer_pause(t);
-  if (self->page_.kind != PageKind::HISTORY || self->scrub_indev_ == nullptr)
+  if (!is_scrub_page_(self->page_.kind) || self->scrub_indev_ == nullptr)
     return;
   lv_point_t p;
   lv_indev_get_point(self->scrub_indev_, &p);
@@ -815,10 +945,10 @@ void DialUi::scrub_hold_cb_(lv_timer_t *t) {
   self->scrub_encoder_ = false;
   self->scrub_touch_ = true;
   lv_timer_pause(self->scrub_revert_timer_);
-  // The drag must not become a swipe: stop the chart's gestures reaching the screen.
-  lv_obj_remove_flag(self->history_screen_.chart().obj(), LV_OBJ_FLAG_GESTURE_BUBBLE);
-  int i = self->history_screen_.chart().pressed_index();
-  self->scrub_to_(i >= 0 ? i : static_cast<int>(HourlyHistory::POINTS) - 1);
+  // A finger moving after the hold must not become a swipe: stop the chart's gestures reaching the screen.
+  lv_obj_remove_flag(self->scrub_chart_obj_(), LV_OBJ_FLAG_GESTURE_BUBBLE);
+  int i = self->scrub_pressed_index_();
+  self->scrub_to_(i >= 0 ? i : SCRUB_POINTS - 1);
 }
 
 void DialUi::scrub_revert_cb_(lv_timer_t *t) {
@@ -829,21 +959,24 @@ void DialUi::scrub_revert_cb_(lv_timer_t *t) {
 }
 
 void DialUi::scrub_to_(int index) {
-  this->history_screen_.scrub(this->rooms_[this->page_.room], index, this->online_last_);
+  if (this->page_.kind == PageKind::ENERGY)
+    this->energy_screen_.scrub(this->energy_, index, this->online_last_);
+  else if (this->page_.kind == PageKind::HISTORY)
+    this->history_screen_.scrub(this->rooms_[this->page_.room], index, this->online_last_);
 }
 
 void DialUi::end_scrub_() {
-  bool active = this->scrub_encoder_ || this->scrub_touch_ || this->history_screen_.scrub_index() >= 0;
+  bool active = this->scrub_encoder_ || this->scrub_touch_ || this->scrub_index_() >= 0;
   this->scrub_encoder_ = false;
   this->scrub_touch_ = false;
   if (this->scrub_hold_timer_ != nullptr)
     lv_timer_pause(this->scrub_hold_timer_);
   if (this->scrub_revert_timer_ != nullptr)
     lv_timer_pause(this->scrub_revert_timer_);
-  lv_obj_t *chart = this->history_screen_.chart().obj();
-  if (chart != nullptr)
-    lv_obj_add_flag(chart, LV_OBJ_FLAG_GESTURE_BUBBLE);
-  if (active && this->page_.kind == PageKind::HISTORY)
+  for (lv_obj_t *chart : {this->history_screen_.chart().obj(), this->energy_screen_.chart().obj()})
+    if (chart != nullptr)
+      lv_obj_add_flag(chart, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  if (active && is_scrub_page_(this->page_.kind))
     this->scrub_to_(-1);
 }
 

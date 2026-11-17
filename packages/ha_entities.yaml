@@ -28,6 +28,15 @@ sensor:
     id: power_now
     entity_id: ${power_entity}
 
+# Energy: cumulative counter (state_class total_increasing). Entity id set in homedial.yaml.
+# dial_ui works in kWh: this entity is in Wh, so scale it here (HA converts the statistics itself,
+# see packages/ui.yaml). Remove the filter if the entity is already in kWh.
+  - platform: homeassistant
+    id: energy_total
+    entity_id: ${energy_entity}
+    filters:
+      - multiply: 0.001
+
 text_sensor:
   - platform: homeassistant
     id: weather_condition

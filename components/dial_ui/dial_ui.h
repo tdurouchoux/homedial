@@ -16,12 +16,14 @@
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/time/real_time_clock.h"
 
+#include "model_energy.h"
 #include "model_nav.h"
 #include "model_weather.h"
 #include "model_room.h"
 #include "model_settings.h"
 #include "model_sleep.h"
 #include "screen_adjust.h"
+#include "screen_energy.h"
 #include "screen_forecast.h"
 #include "screen_history.h"
 #include "screen_power.h"
@@ -44,6 +46,18 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void set_rain(text_sensor::TextSensor *forecast, text_sensor::TextSensor *forecast_time);
   // Electricity: live power in W and the contract limit in W (spec.md "Data decisions").
   void set_power(sensor::Sensor *power, float limit_w);
+  // Energy (last 24 h, hourly), child of Electricity (spec.md "Energy"): cumulative kWh counter and
+  // its HA statistic id (empty: no backfill).
+  void set_energy(sensor::Sensor *energy, const char *statistic_id);
+  // YAML `power: energy: on_request:` gets `ids`, runs recorder.get_statistics (change and state in kWh,
+  // hourly) and hands the compacted rows back:
+  //   on_success: - lambda: id(ui).load_energy(response["response"]);
+  Trigger<std::string> *get_energy_request_trigger() {
+    this->has_energy_request_ = true;
+    return &this->energy_request_trigger_;
+  }
+  void load_energy(JsonVariantConst rows);
+  void energy_request_failed(const std::string &error);
   // Settings targets (spec.md "Settings list").
   void set_backlight(light::LightState *backlight) { this->backlight_ = backlight; }
   void set_buzzer(output::FloatOutput *buzzer) { this->buzzer_ = buzzer; }
@@ -87,6 +101,8 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void maybe_request_forecast_(bool force);
   void maybe_request_history_();
   void redraw_history_views_();
+  void maybe_request_energy_();
+  void refresh_energy_();
 
   // Settings
   void apply_luminosity_(int percent);
@@ -103,8 +119,14 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   static void adjust_event_cb_(lv_event_t *e);
   bool settings_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
 
-  // History page: scrub with the encoder (press, turn) or touch (hold 250 ms on the chart, drag).
-  bool history_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
+  // History and Energy pages: scrub with the encoder (press, turn), or touch: hold 250 ms on a point
+  // to show it (no drag). The helpers pick the visible page's chart.
+  static bool is_scrub_page_(PageKind k) { return k == PageKind::HISTORY || k == PageKind::ENERGY; }
+  bool scrub_event_(lv_event_t *e, lv_event_code_t code, bool from_encoder);
+  lv_obj_t *scrub_chart_obj_();
+  int scrub_index_() const;
+  int scrub_pressed_index_();
+  int scrub_latest_index_() const;
   static void chart_event_cb_(lv_event_t *e);
   void on_chart_event_(lv_event_t *e);
   static void scrub_hold_cb_(lv_timer_t *t);
@@ -137,6 +159,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   ScreenWeather weather_screen_;
   ScreenForecast forecast_screen_;
   ScreenPower power_screen_;
+  ScreenEnergy energy_screen_;
   ScreenAdjust adjust_screen_;
 
   light::LightState *backlight_{nullptr};
@@ -156,6 +179,18 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   float power_w_{NAN};
   float power_limit_w_{0};
   bool power_dirty_{true};
+
+  // Energy: counter in memory, closed hours backfilled from HA once an hour.
+  bool has_energy_{false};
+  bool has_energy_request_{false};
+  std::string energy_statistic_id_;
+  EnergyHistory energy_;
+  bool energy_dirty_{true};
+  int64_t energy_req_hour_{-1};  // UTC hour of the last request on this connection, -1 = none yet
+  bool energy_req_late_{false};  // that request was made when HA had compiled the previous hour
+  bool energy_pending_{false};
+  uint32_t energy_requested_ms_{0};
+  Trigger<std::string> energy_request_trigger_;
 
   // Weather state (written by callbacks, drawn by loop()).
   bool has_weather_{false};
@@ -194,7 +229,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   lv_point_t hold_point_{};
 
   bool scrub_encoder_{false};  // encoder scrub in progress
-  bool scrub_touch_{false};    // touch scrub in progress (finger down)
+  bool scrub_touch_{false};    // a touched point is shown (finger down)
   lv_timer_t *scrub_hold_timer_{nullptr};
   lv_timer_t *scrub_revert_timer_{nullptr};
   lv_indev_t *scrub_indev_{nullptr};

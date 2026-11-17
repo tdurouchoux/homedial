@@ -15,9 +15,12 @@ the data contract in `contract.md`, and conventions in `CLAUDE.md`.
 | M6 | Electricity (live power ring to the 6 kVA contract limit) |
 | M7 | Settings: luminosity, buzzer volume and pitch, screen off, power off |
 | M8 | Dim after 30 s, screen off after 60 s, wake on any input |
+| M9 | Energy: kWh per hour over the last 24 h from HA statistics, scrub like History, child of Electricity (2026-11-17; compile only, not yet checked on the device) |
 | Extra | Room icons, `flash_size: 8MB` |
 
 ## Open items
+- Energy: set `energy_entity` in `homedial.yaml` (placeholder in the repo), check the kWh scale and the scrub on the device.
+- Touch scrub: hold on a point shows it; the drag was removed (2026-11-17, user: it never followed the finger, not wanted). Check on the device that a hold on a History point and on an Energy bar shows it.
 - History: full check over a day of uptime.
 - Weather city on the Forecast title (not shown).
 - RTC (PCF8563) as a time source before Home Assistant connects.

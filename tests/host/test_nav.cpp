@@ -115,6 +115,22 @@ int main() {
   r = nav_apply(power, NavAction::BACK, wp, &before);
   CHECK(r.page.kind == PageKind::SETTINGS && before == power);
   CHECK(carousel_size(wp) == 4 && carousel_index(power, wp) == 3);
+  // Electricity's child, Energy (YAML `power: energy:`): press or swipe up opens it,
+  // only back leaves it, and Settings is not reachable from it.
+  NavShape wpe = wp;
+  wpe.has_energy = true;
+  Page energy{PageKind::ENERGY, 0, 0};
+  r = nav_apply(power, NavAction::OPEN, wpe, &before);
+  CHECK(r.page == energy && r.slide == Slide::UP);
+  CHECK(!nav_apply(energy, NavAction::NEXT, wpe, &before).changed);
+  CHECK(!nav_apply(energy, NavAction::PREV, wpe, &before).changed);
+  CHECK(!nav_apply(energy, NavAction::OPEN, wpe, &before).changed);
+  r = nav_apply(energy, NavAction::BACK, wpe, &before);
+  CHECK(r.page == power && r.slide == Slide::DOWN);
+  CHECK(swipe_action(PageKind::ENERGY, Swipe::DOWN, &a) && a == NavAction::BACK);
+  CHECK(!swipe_action(PageKind::ENERGY, Swipe::UP, &a));
+  CHECK(!swipe_action(PageKind::ENERGY, Swipe::LEFT, &a));
+  CHECK(carousel_size(wpe) == 4);  // Energy is not a carousel page
   // Electricity without Weather follows the rooms directly.
   NavShape p_only = SHAPE;
   p_only.has_power = true;

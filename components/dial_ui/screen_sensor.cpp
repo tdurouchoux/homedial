@@ -19,6 +19,7 @@ void ScreenSensor::create() {
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
   this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
+  make_tappable(this->value_);  // a tap opens the metric's History (spec.md)
   this->trend_.create(this->screen_, TREND_TOP);
   this->status_.create(this->screen_, STATUS_TOP);
   this->dots_.create(this->screen_);

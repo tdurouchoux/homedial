@@ -14,10 +14,10 @@ Every metric is one of three kinds. The kind decides what the ring means and whe
 | Kind | Examples | Ring | Colour |
 | --- | --- | --- | --- |
 | Status | Temperature, humidity, CO2, PM2.5 (each in a room) | Fills 0 to 100% of the sensor range | Ring and status label follow `ok`, `warn`, `danger` |
-| Consumption | Power now; energy today (future) | Power: 0 to the contract limit. Energy (future page): 24 hourly bars, no ring | Power turns `warn` at 80% of the limit and `danger` at 100%. Energy bars stay neutral (`line`, `accent`) except bars above a limit, which are `warn` with a dashed line |
+| Consumption | Power now; energy per hour | Power: 0 to the contract limit. Energy (child of Electricity): hourly bars over the last 24 h, no ring | Power turns `warn` at 80% of the limit and `danger` at 100%. Energy bars stay neutral (`line`, `accent`) except bars above a limit, which are `warn` with a dashed line |
 | Information | Weather now, hourly forecast | Weather now: arc = rain left (0 to 6 h), when raining | `accent` only. A provider's weather warning is a WARN or ALERT status label, nothing else on weather is a state colour |
 
-Weather and power (and energy, once added) follow the anatomy of the Sensor page (names on top, hero value, unit or condition word, one status or hint line, PageDots below), without a room line.
+Weather and power (and energy) follow the anatomy of the Sensor page (names on top, hero value, unit or condition word, one status or hint line, PageDots below), without a room line.
 
 ## Visual foundations
 - **The disc.** The visible area is a circle of radius 120. Draw the bezel arc at the edge, then keep all content inside the content circle (`content-r` 98). A rectangle (chart, list) must fit the `safe-box` of 160 x 160, or be narrower than the chord at its height: `2·√(98² − d²)`, where d is its distance from the centre (d 40 → 179 px, d 60 → 155, d 80 → 113, d 90 → 78).
@@ -45,7 +45,7 @@ Design every screen for all three inputs; none may be required alone. The hardwa
 | Swipe left or right | Next or previous sibling at the same depth: the next page of a carousel, the next item of a series. On a page that is itself a scrolling strip (hourly forecast) it scrolls the strip instead. |
 | Swipe up | Go deeper: open the detail of the current page, same as press. |
 | Swipe down | Back one level, same as long press. At the top level it opens the Settings list. |
-| Touch and hold 250 ms on a chart, then drag | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
+| Touch and hold 250 ms on a chart, then drag (as built: no drag, the hold shows the touched point) | Scrub: a cursor follows the finger and the readout shows that sample's time and value. Release keeps it for 2 s. |
 | Touch and hold 600 ms anywhere else | Open the Settings list (same as long press at the top level). |
 
 

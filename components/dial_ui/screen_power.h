@@ -11,7 +11,8 @@ namespace esphome::dial_ui {
 
 class ScreenPower {
  public:
-  void create(float limit_w);
+  // `tappable`: the value opens the child page (Energy) on a tap.
+  void create(float limit_w, bool tappable);
   void update(float watts, bool online, bool animate);
   void set_dots(size_t count, size_t active) { this->dots_.set(count, active); }
   void animate_dots(size_t count, size_t from, size_t active) { this->dots_.animate(count, from, active); }
@@ -21,6 +22,7 @@ class ScreenPower {
   }
   void reset_ring() { this->gauge_.reset(); }
   lv_obj_t *screen() const { return this->screen_; }
+  lv_obj_t *value_obj() const { return this->value_; }  // tap target: opens Energy
 
  protected:
   lv_obj_t *screen_{nullptr};

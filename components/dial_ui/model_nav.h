@@ -8,7 +8,7 @@
 
 namespace esphome::dial_ui {
 
-enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, WEATHER, FORECAST, POWER, SETTINGS, ADJUST };
+enum class PageKind : uint8_t { ROOM, SENSOR, HISTORY, WEATHER, FORECAST, POWER, ENERGY, SETTINGS, ADJUST };
 
 struct Page {
   PageKind kind{PageKind::ROOM};
@@ -37,6 +37,7 @@ struct NavShape {
   const uint8_t *history_mask{nullptr};
   bool has_weather{false};  // Weather now joins the carousel after the rooms (YAML `weather:`)
   bool has_power{false};    // Electricity is the last carousel page (YAML `power:`)
+  bool has_energy{false};   // Electricity has a child, Energy (YAML `power: energy:`)
 };
 
 // Carousel (level 0): rooms, then Weather now, then Electricity (spec.md).
@@ -77,7 +78,10 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
         r.page = Page{PageKind::FORECAST, 0, 0};  // hourly forecast
         r.slide = Slide::UP;
       } else if (a == NavAction::OPEN && cur.kind == PageKind::POWER) {
-        // Electricity has no child page (spec.md).
+        if (shape.has_energy) {  // Energy is the only child of Electricity
+          r.page = Page{PageKind::ENERGY, 0, 0};
+          r.slide = Slide::UP;
+        }
       } else if (a == NavAction::OPEN && cur.kind == PageKind::ROOM && shape.readings_per_room[cur.room] > 0) {
         r.page = Page{PageKind::SENSOR, cur.room, 0};  // press opens the first metric
         r.slide = Slide::UP;
@@ -92,6 +96,13 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
       // Level 2: turn and drag act inside the strip; only back changes page.
       if (a == NavAction::BACK) {
         r.page = Page{PageKind::WEATHER, 0, 0};
+        r.slide = Slide::DOWN;
+      }
+      break;
+    case PageKind::ENERGY:
+      // Level 1 detail page, no siblings: only back changes page.
+      if (a == NavAction::BACK) {
+        r.page = Page{PageKind::POWER, 0, 0};
         r.slide = Slide::DOWN;
       }
       break;
@@ -151,7 +162,8 @@ inline bool swipe_action(PageKind kind, Swipe s, NavAction *out) {
     *out = NavAction::BACK;
     return true;
   }
-  if (kind == PageKind::HISTORY || kind == PageKind::FORECAST || kind == PageKind::ADJUST) {  // only swipe down (back)
+  if (kind == PageKind::HISTORY || kind == PageKind::FORECAST || kind == PageKind::ENERGY ||
+      kind == PageKind::ADJUST) {  // only swipe down (back)
     if (s != Swipe::DOWN)
       return false;
     *out = NavAction::BACK;

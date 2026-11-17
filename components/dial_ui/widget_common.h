@@ -44,6 +44,18 @@ inline lv_obj_t *create_text(lv_obj_t *parent, const lv_font_t *font, lv_color_t
   return l;
 }
 
+// A hero value that opens the page's child on a tap (Sensor -> History, Electricity -> Energy),
+// like a tap on a Room reading: pressed highlight, 12 px extra hit area, the tap bubbles to the
+// screen handler.
+inline void make_tappable(lv_obj_t *obj) {
+  lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+  lv_obj_set_ext_click_area(obj, DIALED_SPACE_3);
+  lv_obj_set_style_radius(obj, DIALED_RADIUS_MD, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(obj, DIALED_SURFACE_2, LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_STATE_PRESSED);
+}
+
 // "Nudge": the object is drawn (dx, dy) px off and eases back to its place. It only moves the
 // drawing (translate_x/y), not the layout, so LVGL redraws just the object's box. Used instead
 // of full-screen slides (spec.md): content arrives moving the way the finger went.
