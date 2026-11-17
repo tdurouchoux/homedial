@@ -7,8 +7,8 @@ substitutions:
   next_rain_entity: sensor.paris_11eme_arrondissement_next_rain
   # Live power in W (Electricity page). PLACEHOLDER: replace with your entity.
   power_entity: sensor.linky_apparent_power
-  # Cumulative energy counter in kWh (total_increasing), for Energy today. PLACEHOLDER: replace
-  # with your entity (the meter used by the Energy dashboard).
+  # Cumulative energy counter (total_increasing; in Wh, see the filter in packages/ha_entities.yaml),
+  # for the Energy page (the Energy dashboard's meter).
   energy_entity: sensor.compteur_electricite
 
 esphome:
