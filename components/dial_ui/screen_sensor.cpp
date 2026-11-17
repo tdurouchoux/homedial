@@ -17,7 +17,7 @@ void ScreenSensor::create() {
   this->screen_ = create_screen();
   this->gauge_.create(this->screen_);
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
-  this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
+  this->metric_.create(this->screen_, DIALED_FONT_LABEL, MetricIconSize::SENSOR, 6, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_XL, DIALED_INK, VALUE_TOP);
   make_tappable(this->value_);  // a tap opens the metric's History (spec.md)
   this->trend_.create(this->screen_, TREND_TOP);
@@ -32,7 +32,8 @@ void ScreenSensor::bind(const Room &room, size_t room_index, size_t index, bool 
   this->room_.set(room.name, room.icon);
   char line[32];
   snprintf(line, sizeof(line), "%s %s", info.name, info.unit);  // "Temperature °C"
-  lv_label_set_text(this->metric_, line);
+  this->metric_.set_metric(room.readings[index].metric);
+  lv_label_set_text(this->metric_.text(), line);
   this->trend_.set(room.readings[index]);
   if (dots_from == SIZE_MAX)
     this->dots_.set(room.readings.size(), index);

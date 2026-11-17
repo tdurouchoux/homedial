@@ -2,6 +2,7 @@
 // Generates the dial_ui icon images from the design SVGs (the design stays the single source of truth):
 //   design/components/WeatherIcon/preview.html -> components/dial_ui/weather_icons.c (48 and 32 px)
 //   design/components/RoomIcon/preview.html    -> components/dial_ui/room_icons.c    (16 px)
+//   design/components/MetricIcon/preview.html  -> components/dial_ui/metric_icons.c  (12, 14, 16 px)
 //
 // Each SVG is rendered by Chromium (Playwright) white-on-black at its native size and stored as an
 // LVGL A8 image (8-bit alpha). LVGL draws A8 images as a mask in the image recolour colour, like a
@@ -31,6 +32,14 @@ const SETS = [
     // Order in the preview and the RoomIcon enum in model_room.h; each icon at 16 and 48 px (48 unused).
     names: ['living_room', 'bedroom', 'kitchen', 'bathroom', 'office', 'garage', 'garden', 'other'],
     sizes: [16],
+  },
+  {
+    src: 'design/components/MetricIcon/preview.html',
+    out: 'components/dial_ui/metric_icons.c',
+    prefix: 'dialed_metric_',
+    // Order in the preview and the Metric enum in model_metric.h; each icon at 12 (Room), 14 (History), 16 (Sensor) px.
+    names: ['temperature', 'humidity', 'air_quality'],
+    sizes: [12, 14, 16],
   },
 ];
 

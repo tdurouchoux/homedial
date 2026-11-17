@@ -16,7 +16,7 @@ static constexpr int32_t AXIS_X = 64;  // axis-end labels, from the centre
 void ScreenHistory::create() {
   this->screen_ = create_screen();
   this->room_.create(this->screen_, DIALED_FONT_BODY, ROOM_TOP);
-  this->metric_ = create_text(this->screen_, DIALED_FONT_LABEL, DIALED_INK_MUTED, METRIC_TOP);
+  this->metric_.create(this->screen_, DIALED_FONT_LABEL, MetricIconSize::HISTORY, 5, METRIC_TOP);
   this->value_ = create_text(this->screen_, DIALED_FONT_VALUE_M, DIALED_INK, VALUE_TOP);
   this->chart_.create(this->screen_, CHART_TOP);
   lv_obj_t *left = create_text(this->screen_, DIALED_FONT_CAPTION, DIALED_INK_MUTED, AXIS_TOP, -AXIS_X);
@@ -32,12 +32,13 @@ void ScreenHistory::bind(const Room &room, size_t room_index, size_t index, bool
   this->scrub_ = -1;
   this->chart_.show_cursor(-1);
   this->room_.set(room.name, room.icon);
+  this->metric_.set_metric(room.readings[index].metric);
   this->update(room, online);
 }
 
 void ScreenHistory::live_readout_(const Room &room, bool online) {
   const Reading &r = room.readings[this->index_];
-  lv_label_set_text_fmt(this->metric_, "%s " LV_SYMBOL_BULLET " 24 h", metric_info(r.metric).short_label);
+  lv_label_set_text_fmt(this->metric_.text(), "%s " LV_SYMBOL_BULLET " 24 h", metric_info(r.metric).short_label);
   char buf[16];
   format_value(buf, sizeof(buf), r.value, r.metric, online);
   lv_label_set_text(this->value_, buf);
@@ -75,7 +76,7 @@ void ScreenHistory::scrub(const Room &room, int i, bool online) {
     ESPTime lt = ESPTime::from_epoch_local(static_cast<time_t>(r.history.hour_start(static_cast<size_t>(i))));
     snprintf(when, sizeof(when), "%02d:00", lt.hour);
   }
-  lv_label_set_text_fmt(this->metric_, "%s " LV_SYMBOL_BULLET " %s", metric_info(r.metric).short_label, when);
+  lv_label_set_text_fmt(this->metric_.text(), "%s " LV_SYMBOL_BULLET " %s", metric_info(r.metric).short_label, when);
   char buf[16];
   format_value(buf, sizeof(buf), v, r.metric, true);
   lv_label_set_text(this->value_, buf);

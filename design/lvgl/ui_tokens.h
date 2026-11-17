@@ -20,6 +20,9 @@
 #define DIALED_RAIN_1     lv_color_hex(0xA6D0FF)
 #define DIALED_RAIN_2     lv_color_hex(0x4F8FFF)
 #define DIALED_RAIN_3     lv_color_hex(0x2A55E8)
+#define DIALED_METRIC_TEMP     lv_color_hex(0xFF8A5C)
+#define DIALED_METRIC_HUMIDITY lv_color_hex(0x5CC8FF)
+#define DIALED_METRIC_AIR      lv_color_hex(0x7BE495)
 #else
 #define DIALED_BG         lv_color_hex(0xF2F4F1)
 #define DIALED_SURFACE    lv_color_hex(0xE2E6E1)
@@ -36,6 +39,9 @@
 #define DIALED_RAIN_1     lv_color_hex(0x7FB0EA)
 #define DIALED_RAIN_2     lv_color_hex(0x2F72D0)
 #define DIALED_RAIN_3     lv_color_hex(0x0D3A96)
+#define DIALED_METRIC_TEMP     lv_color_hex(0xC2410C)
+#define DIALED_METRIC_HUMIDITY lv_color_hex(0x0A6A9E)
+#define DIALED_METRIC_AIR      lv_color_hex(0x1A7F37)
 #endif
 
 /* Fonts (enable the matching LV_FONT_MONTSERRAT_x in lv_conf.h). */

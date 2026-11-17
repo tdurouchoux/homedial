@@ -99,6 +99,10 @@ See `contract.md` for the ESPHome <-> UI contract.
 
 Each room may set `icon:` in `packages/ui.yaml` to one of the eight design glyphs (living_room, bedroom, kitchen, bathroom, office, garage, garden, other); without it the name is centred alone. The icon shows before the room name on the Room, Sensor and History pages. With an icon, keep the name to 10 characters (design RoomIcon).
 
+### Metric icons
+
+A small coloured icon (design MetricIcon: thermometer, drop, wind) precedes the metric name on the Room (12 px), History (14 px) and Sensor (16 px) pages. Colours are the `metric-*` tokens; they identify the metric and never carry a status.
+
 ## Electricity
 
 - Contract limit **6 kVA (6000 W)** (decided 2026-11-15), set as `power: contract_limit` in `packages/ui.yaml`. Ring 0 to the limit; WARN from 80 %, ALERT from 100 % (ring full).

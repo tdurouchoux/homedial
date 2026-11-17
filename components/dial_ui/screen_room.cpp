@@ -58,8 +58,9 @@ void ScreenRoom::create(const Room &room) {
     lv_obj_set_style_bg_color(s.box, DIALED_SURFACE_2, LV_STATE_PRESSED);
     lv_obj_set_style_bg_opa(s.box, LV_OPA_COVER, LV_STATE_PRESSED);
 
-    s.label = create_text(s.box, DIALED_FONT_LABEL, DIALED_INK_MUTED, 4);
-    lv_label_set_text(s.label, metric_info(room.readings[i].metric).short_label);
+    s.label.create(s.box, DIALED_FONT_LABEL, MetricIconSize::ROOM, 4, 4);
+    s.label.set_metric(room.readings[i].metric);
+    lv_label_set_text(s.label.text(), metric_info(room.readings[i].metric).short_label);
     s.value = create_text(s.box, value_font, DIALED_INK_MUTED, 4 + LABEL_H);
     lv_label_set_text(s.value, "--");
   }

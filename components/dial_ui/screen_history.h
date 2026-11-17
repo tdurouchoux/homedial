@@ -5,6 +5,7 @@
 #include "model_room.h"
 #include "widget_common.h"
 #include "widget_location_label.h"
+#include "widget_metric_label.h"
 #include "widget_status_label.h"
 #include "widget_trend_chart.h"
 
@@ -32,7 +33,7 @@ class ScreenHistory {
 
   lv_obj_t *screen_{nullptr};
   LocationLabel room_;
-  lv_obj_t *metric_{nullptr};
+  MetricLabel metric_;
   lv_obj_t *value_{nullptr};
   TrendChart chart_;
   StatusLabel status_;

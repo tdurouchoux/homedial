@@ -4,6 +4,7 @@
 #include "model_room.h"
 #include "widget_common.h"
 #include "widget_location_label.h"
+#include "widget_metric_label.h"
 #include "widget_page_dots.h"
 
 namespace esphome::dial_ui {
@@ -39,7 +40,7 @@ class ScreenRoom {
  protected:
   struct Slot {
     lv_obj_t *box{nullptr};    // clickable target (>= 82 x 58)
-    lv_obj_t *label{nullptr};  // metric + unit
+    MetricLabel label;         // metric icon + metric + unit
     lv_obj_t *value{nullptr};
   };
   lv_obj_t *screen_{nullptr};

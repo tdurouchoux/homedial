@@ -7,6 +7,7 @@
 #include "widget_arc_gauge.h"
 #include "widget_common.h"
 #include "widget_location_label.h"
+#include "widget_metric_label.h"
 #include "widget_page_dots.h"
 #include "widget_sparkline.h"
 #include "widget_status_label.h"
@@ -28,7 +29,7 @@ class ScreenSensor {
   // Arrival nudge: vertical moves nudge the value; sideways moves (metric to metric) nudge
   // the metric line, value and trend line (the room line stays: same room).
   void nudge(int32_t dx, int32_t dy) {
-    nudge_in(this->metric_, dx, 0);
+    nudge_in(this->metric_.obj(), dx, 0);
     nudge_in(this->value_, dx, dy);
     nudge_in(this->trend_.obj(), dx, 0, dx != 0 ? 30 : 0);
   }
@@ -43,7 +44,7 @@ class ScreenSensor {
  protected:
   lv_obj_t *screen_{nullptr};
   LocationLabel room_;
-  lv_obj_t *metric_{nullptr};
+  MetricLabel metric_;
   lv_obj_t *value_{nullptr};
   ArcGauge gauge_;
   Sparkline trend_;
