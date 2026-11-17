@@ -1,12 +1,10 @@
 #include "widget_bar_chart.h"
 
-#include "model_energy.h"
-
 namespace esphome::dial_ui {
 
 static constexpr int32_t PLOT_H = 72;  // bars stand on the 1 px baseline below
 static constexpr int32_t STUB_H = 2;
-static constexpr int32_t GAP = 3;      // between bars: 24 bars of 3.8 px, ~ 62 % of a 6.67 px slot
+static constexpr int32_t GAP = 2;      // between bars: 25 bars of 4 px on a 6.5 px pitch (~ 62 %)
 
 void BarChart::create(lv_obj_t *parent, int32_t top) {
   lv_obj_t *box = lv_obj_create(parent);
@@ -16,8 +14,8 @@ void BarChart::create(lv_obj_t *parent, int32_t top) {
   lv_obj_set_size(box, W, H);
   lv_obj_align(box, LV_ALIGN_TOP_MID, 0, top);
 
+  // Clickable (the default): LVGL tracks the pressed bar for the touch scrub.
   lv_obj_t *c = lv_chart_create(box);
-  lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_size(c, W, PLOT_H);
   lv_obj_set_pos(c, 0, 0);
@@ -36,7 +34,7 @@ void BarChart::create(lv_obj_t *parent, int32_t top) {
   this->series_ = lv_chart_add_series(c, DIALED_LINE, LV_CHART_AXIS_PRIMARY_Y);
   for (size_t i = 0; i < N; i++) {
     this->px_[i] = STUB_H;
-    this->kind_[i] = 3;
+    this->missing_[i] = true;
   }
   lv_chart_set_series_ext_y_array(c, this->series_, this->px_);
   lv_obj_add_flag(c, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
@@ -62,25 +60,47 @@ void BarChart::draw_cb_(lv_event_t *e) {
   lv_draw_fill_dsc_t *fill = lv_draw_task_get_fill_dsc(task);
   if (fill == nullptr || base->id2 >= N)
     return;
-  uint8_t kind = self->kind_[base->id2];
-  fill->color = kind == 2 ? DIALED_ACCENT : (kind == 1 ? DIALED_LINE : DIALED_TRACK);
+  size_t i = base->id2;
+  if (self->missing_[i])
+    fill->color = DIALED_TRACK;
+  else if (static_cast<int>(i) == self->highlight_)
+    fill->color = DIALED_ACCENT;
+  else
+    fill->color = DIALED_LINE;
 }
 
-void BarChart::set_data(const float *values, size_t current, float axis_max) {
+void BarChart::set_data(const float *values, float axis_max) {
   bool changed = false;
   for (size_t i = 0; i < N; i++) {
-    int32_t h = STUB_H;
-    uint8_t kind = 3;
-    if (!std::isnan(values[i])) {
-      h = bar_px(values[i], axis_max, PLOT_H);
-      kind = i == current ? 2 : 1;
-    }
-    changed |= h != this->px_[i] || kind != this->kind_[i];
+    bool missing = std::isnan(values[i]);
+    int32_t h = missing ? STUB_H : bar_px(values[i], axis_max, PLOT_H);
+    changed |= h != this->px_[i] || missing != this->missing_[i];
     this->px_[i] = h;
-    this->kind_[i] = kind;
+    this->missing_[i] = missing;
   }
   if (changed)
     lv_chart_refresh(this->chart_);
+}
+
+void BarChart::highlight(int index) {
+  if (index == this->highlight_)
+    return;
+  this->highlight_ = index;
+  lv_obj_invalidate(this->chart_);
+}
+
+int BarChart::index_at_x(int32_t x) const {
+  lv_area_t a;
+  lv_obj_get_coords(this->chart_, &a);
+  int32_t w = lv_area_get_width(&a);
+  if (w <= 0)
+    return -1;
+  int32_t dx = x - a.x1;
+  if (dx < 0)
+    dx = 0;
+  if (dx >= w)
+    dx = w - 1;
+  return static_cast<int>(dx * static_cast<int32_t>(N) / w);  // same split as lv_chart's BAR hit test
 }
 
 }  // namespace esphome::dial_ui

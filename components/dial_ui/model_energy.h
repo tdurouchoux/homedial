@@ -1,10 +1,11 @@
 #pragma once
-// Energy today (design ScreenEnergy / BarChart, spec.md "Energy"): 24 hourly kWh bars for the
-// local calendar day. RAM only, pure C++, host-tested.
+// Energy over the last 24 h (design ScreenEnergy / BarChart, spec.md "Energy"): kWh used in each
+// hour, the same window as HourlyHistory (24 closed hours + the current one). RAM only, pure C++,
+// host-tested.
 //
 // Source: a cumulative kWh counter. Closed hours come from Home Assistant's hourly statistics
-// (`change`, contract.md §5.3). The open hour is the live counter minus its value at the start
-// of the hour (the `state` of the last closed hour, or the counter seen at the hour rollover).
+// (`change`, contract.md §5.3). The open hour is the live counter minus its value at the start of
+// the hour (the `state` of the last closed hour from HA, or the counter seen at the hour rollover).
 
 #include <cmath>
 #include <cstddef>
@@ -13,100 +14,84 @@
 
 namespace esphome::dial_ui {
 
-// Local calendar day (any number that grows by one per day) and hour 0-23 of an epoch.
-struct LocalTime {
-  int64_t day{0};
-  int hour{0};
-};
-using LocalTimeFn = LocalTime (*)(int64_t epoch);
-
-// Days since 1970-01-01 of a civil date (Howard Hinnant's days_from_civil), for LocalTime::day.
-inline int64_t days_from_civil(int y, int m, int d) {
-  y -= m <= 2;
-  int64_t era = (y >= 0 ? y : y - 399) / 400;
-  int64_t yoe = y - era * 400;
-  int64_t doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
-  int64_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-  return era * 146097 + doe - 719468;
-}
-
-class EnergyDay {
+class EnergyHistory {
  public:
-  static constexpr size_t HOURS = 24;
+  static constexpr size_t CLOSED = 24;          // finished hours
+  static constexpr size_t POINTS = CLOSED + 1;  // + the current (open) hour
   static constexpr int64_t MIN_VALID_EPOCH = 1704067200;  // 2024-01-01: before this the clock is not set
-
-  void set_local_time(LocalTimeFn fn) { this->local_ = fn; }
 
   // Live value of the cumulative counter (kWh). NaN (unavailable) is kept as "unknown".
   void set_live(double kwh) { this->live_ = kwh; }
 
-  // Rolls the day and hour forward to `epoch`. When an hour closes with no gap, the device's own
+  // Rolls the hours forward to `epoch`. When the open hour closes with no gap, the device's own
   // figure (counter now minus counter at the start of that hour) takes its place until Home
-  // Assistant's statistics replace it. Returns true when the hour or the day changed.
+  // Assistant's statistics replace it; hours never seen are missing. Returns true on a rollover.
   bool advance(int64_t epoch) {
-    if (this->local_ == nullptr || epoch < MIN_VALID_EPOCH)
+    if (epoch < MIN_VALID_EPOCH)
       return false;
     int64_t h = epoch / 3600;
-    LocalTime lt = this->local_(epoch);
     if (this->open_hour_ < 0) {
       this->open_hour_ = h;
-      this->day_ = lt.day;
-      this->cur_hour_ = lt.hour;
       return true;
     }
     if (h <= this->open_hour_)
       return false;  // same hour, or the clock went back: keep what we have
-    if (h == this->open_hour_ + 1) {
-      float v = this->open_value_();
-      if (!std::isnan(v))
-        this->store_(this->day_, this->cur_hour_, v);
-    }
-    if (lt.day != this->day_) {  // a new day starts empty
-      for (size_t i = 0; i < HOURS; i++)
-        this->today_[i] = NAN;
-      this->day_ = lt.day;
-    }
-    this->cur_hour_ = lt.hour;
+    int64_t steps = h - this->open_hour_;
+    this->push_(steps == 1 ? this->open_value_() : NAN);  // a longer gap: live - base spans several hours
+    for (int64_t i = 1; i < steps && i <= static_cast<int64_t>(CLOSED); i++)
+      this->push_(NAN);
     this->open_hour_ = h;
     this->base_ = this->live_;  // the counter as seen at the rollover (a few seconds late at most)
     return true;
   }
 
   // Backfill from HA: the closed hour starting at `hour_epoch` used `change` kWh and ended with
-  // the counter at `end_state` (NaN if unknown). Only closed hours of today are kept.
-  // The last closed hour's end value is also the open hour's starting counter.
+  // the counter at `end_state` (NaN if unknown). Ignored outside the 24 closed hours. The last
+  // closed hour's end value is also the open hour's starting counter.
   void set_closed(int64_t hour_epoch, double change, double end_state) {
-    if (this->local_ == nullptr || this->open_hour_ < 0 || std::isnan(change) || hour_epoch < 0)
+    if (this->open_hour_ < 0 || hour_epoch < 0)
       return;
-    int64_t h = hour_epoch / 3600;
-    if (h >= this->open_hour_)
+    int64_t back = this->open_hour_ - hour_epoch / 3600;  // 1 = the last closed hour
+    if (back < 1 || back > static_cast<int64_t>(CLOSED))
       return;
-    LocalTime lt = this->local_(hour_epoch);
-    this->store_(lt.day, lt.hour, static_cast<float>(change));
-    if (h == this->open_hour_ - 1 && !std::isnan(end_state))
+    if (!std::isnan(change))
+      this->closed_[CLOSED - static_cast<size_t>(back)] = change < 0 ? NAN : static_cast<float>(change);
+    if (back == 1 && !std::isnan(end_state))
       this->base_ = end_state;
   }
 
-  double live() const { return this->live_; }
-  double base() const { return this->base_; }  // counter at the start of the open hour (NaN = unknown)
-  bool has_clock() const { return this->open_hour_ >= 0; }
-  size_t current_hour() const { return static_cast<size_t>(this->cur_hour_); }
-
-  // Bar i (local hour i of today): kWh, or NaN when not reached or unknown.
-  float bar(size_t i) const {
-    if (this->open_hour_ < 0 || i >= HOURS || static_cast<int>(i) > this->cur_hour_)
+  // Point i, oldest (0, 24 h ago) to newest (POINTS - 1, the current hour so far): kWh, NaN = missing.
+  float point(size_t i) const {
+    if (this->open_hour_ < 0 || i >= POINTS)
       return NAN;
-    if (static_cast<int>(i) == this->cur_hour_)
+    if (i == POINTS - 1)
       return this->open_value_();
-    return this->today_[i];
+    return this->closed_[i];
   }
 
-  // Today so far in kWh (sum of the known hours), NaN with no data.
-  float today_total() const {
+  // Start of point i's hour (epoch seconds), or -1 before the clock is known.
+  int64_t hour_start(size_t i) const {
+    if (this->open_hour_ < 0 || i >= POINTS)
+      return -1;
+    return (this->open_hour_ - static_cast<int64_t>(POINTS - 1 - i)) * 3600;
+  }
+
+  bool has_clock() const { return this->open_hour_ >= 0; }
+
+  // Newest point with a value, or -1.
+  int latest_index() const {
+    for (size_t i = POINTS; i-- > 0;)
+      if (!std::isnan(this->point(i)))
+        return static_cast<int>(i);
+    return -1;
+  }
+
+  // Sum of the known points in kWh, NaN with no data.
+  float total() const {
     double sum = 0;
     bool any = false;
-    for (size_t i = 0; i < HOURS; i++) {
-      float v = this->bar(i);
+    for (size_t i = 0; i < POINTS; i++) {
+      float v = this->point(i);
       if (!std::isnan(v)) {
         sum += v;
         any = true;
@@ -114,6 +99,9 @@ class EnergyDay {
     }
     return any ? static_cast<float>(sum) : NAN;
   }
+
+  double live() const { return this->live_; }
+  double base() const { return this->base_; }  // counter at the start of the open hour (NaN = unknown)
 
  protected:
   float open_value_() const {
@@ -123,19 +111,15 @@ class EnergyDay {
     return v < 0 ? NAN : static_cast<float>(v);  // a counter that went down was reset or is stale
   }
 
-  void store_(int64_t day, int hour, float v) {
-    if (hour < 0 || hour >= static_cast<int>(HOURS))
-      return;
-    if (day == this->day_)  // hours of earlier days are not kept
-      this->today_[hour] = v;
+  void push_(float v) {
+    for (size_t i = 0; i + 1 < CLOSED; i++)
+      this->closed_[i] = this->closed_[i + 1];
+    this->closed_[CLOSED - 1] = v;
   }
 
-  LocalTimeFn local_{nullptr};
-  float today_[HOURS] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                         NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
-  int64_t open_hour_{-1};  // UTC hour number of the open hour; -1 until the clock is set
-  int64_t day_{0};
-  int cur_hour_{0};
+  float closed_[CLOSED] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
+                           NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+  int64_t open_hour_{-1};  // hour number (epoch / 3600) of the open hour; -1 until the clock is set
   double live_{NAN};
   double base_{NAN};
 };
@@ -168,12 +152,15 @@ inline int bar_px(float v, float axis_max, int plot_h) {
   return h > plot_h ? plot_h : h;
 }
 
-// Today's total as the page shows it: one decimal up to 99.9, whole kWh above; "--" if missing.
+// kWh as the page shows it: two decimals below 10 (an hour is often under 1 kWh), one up to 99.9,
+// whole kWh above; "--" if missing.
 inline void format_kwh(float kwh, char *buf, size_t len) {
   if (std::isnan(kwh))
     std::snprintf(buf, len, "--");
+  else if (kwh < 9.995f)
+    std::snprintf(buf, len, "%.2f", kwh < 0.005f ? 0.0f : kwh);
   else if (kwh < 99.95f)
-    std::snprintf(buf, len, "%.1f", kwh < 0.05f ? 0.0f : kwh);
+    std::snprintf(buf, len, "%.1f", kwh);
   else
     std::snprintf(buf, len, "%.0f", kwh);
 }

@@ -161,7 +161,7 @@ WEATHER_SCHEMA = cv.All(
 )
 
 
-# Energy today (design ScreenEnergy), the child page of Electricity: hourly kWh bars.
+# Energy (design ScreenEnergy), the child page of Electricity: kWh per hour over the last 24 h.
 ENERGY_SCHEMA = cv.Schema(
     {
         # Cumulative energy counter in kWh (state_class total_increasing), e.g. the Energy dashboard's meter.

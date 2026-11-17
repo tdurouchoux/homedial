@@ -59,7 +59,7 @@ Ship the six conditions (clear, part cloudy, cloudy, rain, snow, storm) as one i
 
 ## Power and energy
 - Live power uses the ring gauge with the range 0 to the contract limit in watts. Switch the indicator colour at 80% (`DIALED_WARN`) and 100% (`DIALED_DANGER`), and show the matching status label.
-- Energy per hour is 24 bars: past hours `DIALED_LINE`, the current hour `DIALED_ACCENT`, hours not yet reached 2 px `DIALED_TRACK` stubs (bars above a limit would be `DIALED_WARN`; no limit is configured in this build). `widget_bar_chart.cpp` follows this: an `lv_chart` of type `LV_CHART_TYPE_BAR` whose values are bar heights in px (so a stub is just the minimum value), recoloured per point in `LV_EVENT_DRAW_TASK_ADDED` through `lv_draw_task_get_fill_dsc` (`base->id2` is the point index, as in LVGL's chart example 4), over a 1 px `DIALED_TRACK` baseline.
+- Energy per hour is one bar per hour (25 as built, -24 h to now): bars `DIALED_LINE`, the current (or scrubbed) hour `DIALED_ACCENT`, hours without data 2 px `DIALED_TRACK` stubs (bars above a limit would be `DIALED_WARN`; no limit is configured in this build). `widget_bar_chart.cpp` follows this: an `lv_chart` of type `LV_CHART_TYPE_BAR` whose values are bar heights in px (so a stub is just the minimum value), recoloured per point in `LV_EVENT_DRAW_TASK_ADDED` through `lv_draw_task_get_fill_dsc` (`base->id2` is the point index, as in LVGL's chart example 4), over a 1 px `DIALED_TRACK` baseline. For the touch scrub the bar comes from the finger's x: `lv_chart_get_pressed_point()` is only updated on `LV_EVENT_PRESSED`, not while dragging (`lv_chart.c`).
 - Update power at 1 Hz, energy once a minute.
 
 ## Rooms and sensors

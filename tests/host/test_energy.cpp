@@ -17,103 +17,70 @@ static int failures = 0;
   } while (0)
 static bool near(float a, float b) { return std::fabs(a - b) < 0.005f; }
 
-// Local time = UTC+1, no DST (enough for the model: it only needs day and hour).
-static LocalTime utc1(int64_t e) {
-  int64_t l = e + 3600;
-  return LocalTime{l / 86400, static_cast<int>((l % 86400) / 3600)};
-}
-
-static constexpr int64_t DAY0 = 1767225600;  // 2026-01-01 00:00 UTC
-// Epoch of local `hour`:`min` on local day `d` (0 = 2026-01-01 local, UTC+1).
-static int64_t at(int d, int hour, int min = 0, int sec = 0) {
-  return DAY0 - 3600 + d * 86400 + hour * 3600 + min * 60 + sec;
-}
-
-static EnergyDay make() {
-  EnergyDay e;
-  e.set_local_time(&utc1);
-  return e;
-}
+static constexpr int64_t T0 = 1767225600;  // 2026-01-01 00:00 UTC, an hour boundary
+static int64_t at(int hour, int min = 0, int sec = 0) { return T0 + hour * 3600 + min * 60 + sec; }
+static constexpr size_t NOW = EnergyHistory::POINTS - 1;  // index of the open hour
 
 int main() {
-  // Civil dates.
-  CHECK(days_from_civil(1970, 1, 1) == 0);
-  CHECK(days_from_civil(2026, 1, 1) == DAY0 / 86400);
-  CHECK(days_from_civil(2026, 3, 1) - days_from_civil(2026, 2, 28) == 1);
-
   // No clock: everything is unknown.
-  EnergyDay e = make();
-  CHECK(!e.has_clock());
-  CHECK(std::isnan(e.bar(0)) && std::isnan(e.today_total()));
-  CHECK(!e.advance(1000));  // clock not set
-  CHECK(!e.has_clock());
+  EnergyHistory e;
+  CHECK(!e.has_clock() && std::isnan(e.point(0)) && std::isnan(e.total()) && e.latest_index() < 0);
+  CHECK(!e.advance(1000));
+  CHECK(e.hour_start(0) == -1);
 
-  // Boot at 10:30 on day 1; today's hours 0-9 known.
-  CHECK(e.advance(at(1, 10, 30)));
-  CHECK(e.has_clock() && e.current_hour() == 10);
-  for (int h = 0; h < 10; h++)
-    e.set_closed(at(1, h), 0.5, h == 9 ? 1000.0 : NAN);  // today 0.5 kWh an hour
-  CHECK(near(e.bar(0), 0.5f) && near(e.bar(9), 0.5f));
-  CHECK(std::isnan(e.bar(10)));  // open hour: no live value yet
-  CHECK(std::isnan(e.bar(11)));  // not reached
-  CHECK(near(e.today_total(), 5.0f));
+  // Boot at 30:30 (hour 30 since T0): the window is hours 6..29 closed + 30 open.
+  CHECK(e.advance(at(30, 30)));
+  CHECK(e.hour_start(NOW) == at(30) && e.hour_start(0) == at(6));
+  for (int h = 6; h < 30; h++)
+    e.set_closed(at(h), 0.5, h == 29 ? 1000.0 : NAN);  // HA: 0.5 kWh an hour, counter 1000 at 30:00
+  CHECK(near(e.point(0), 0.5f) && near(e.point(NOW - 1), 0.5f));
+  CHECK(std::isnan(e.point(NOW)));  // open hour: no live value yet
+  CHECK(near(e.total(), 12.0f));
+  CHECK(e.latest_index() == static_cast<int>(NOW) - 1);
+  // Outside the window, the open hour and the future are ignored.
+  e.set_closed(at(5), 9.0, NAN);
+  e.set_closed(at(30), 9.0, NAN);
+  e.set_closed(at(31), 9.0, NAN);
+  CHECK(near(e.total(), 12.0f));
+  // A negative change (counter reset in HA) is not a bar.
+  e.set_closed(at(7), -3.0, NAN);
+  CHECK(std::isnan(e.point(1)));
+  e.set_closed(at(7), 0.5, NAN);
 
   // Live counter: the open hour is the counter minus its value at the start of the hour (1000).
   e.set_live(1000.4);
-  CHECK(near(e.bar(10), 0.4f));
-  CHECK(near(e.today_total(), 5.4f));
+  CHECK(near(e.point(NOW), 0.4f) && e.latest_index() == static_cast<int>(NOW));
+  CHECK(near(e.total(), 12.4f));
   e.set_live(999.0);  // the counter went down: unknown, not negative
-  CHECK(std::isnan(e.bar(10)));
+  CHECK(std::isnan(e.point(NOW)));
+  CHECK(!e.advance(at(30, 59)));  // same hour: nothing changes
 
-  // Same hour again: nothing changes.
-  CHECK(!e.advance(at(1, 10, 59)));
-
-  // Rollover to 11:00:05 with no gap: the device's own figure fills hour 10 until HA replaces it.
+  // Rollover to 31:00:05 with no gap: the device's own figure fills hour 30 until HA replaces it.
   e.set_live(1000.9);
-  CHECK(e.advance(at(1, 11, 0, 5)));
-  CHECK(e.current_hour() == 11);
-  CHECK(near(e.bar(10), 0.9f));
-  CHECK(near(e.bar(11), 0.0f));  // base = the counter at the rollover
+  CHECK(e.advance(at(31, 0, 5)));
+  CHECK(e.hour_start(NOW) == at(31) && e.hour_start(0) == at(7));
+  CHECK(near(e.point(NOW - 1), 0.9f));
+  CHECK(near(e.point(NOW), 0.0f));  // base = the counter at the rollover
+  CHECK(near(e.point(0), 0.5f));    // hour 6 left the window, hour 7 is now the oldest
   e.set_live(1001.2);
-  CHECK(near(e.bar(11), 0.3f));
-  // HA's statistics for hour 10 (0.95 kWh, counter 1000.95 at its end) replace the provisional one.
-  e.set_closed(at(1, 10), 0.95, 1000.95);
-  CHECK(near(e.bar(10), 0.95f));
-  CHECK(near(e.bar(11), 0.25f));
-  // The open hour and the future are never set by backfill.
-  e.set_closed(at(1, 11), 9.0, NAN);
-  e.set_closed(at(1, 12), 9.0, NAN);
-  CHECK(near(e.bar(11), 0.25f) && std::isnan(e.bar(12)));
-  // Hours of earlier days are dropped.
-  e.set_closed(at(0, 5), 9.0, NAN);
-  CHECK(near(e.today_total(), 5.0f + 0.95f + 0.25f));
+  CHECK(near(e.point(NOW), 0.3f));
+  // HA's statistics for hour 30 (0.95 kWh, counter 1000.95 at its end) replace the provisional one.
+  e.set_closed(at(30), 0.95, 1000.95);
+  CHECK(near(e.point(NOW - 1), 0.95f) && near(e.point(NOW), 0.25f));
 
-  // A gap of several hours: no provisional value, the open hour starts again at the next counter.
-  EnergyDay g = make();
-  g.advance(at(1, 10, 30));
-  g.set_closed(at(1, 9), 0.5, 500.0);
+  // A gap of several hours: no provisional value, unseen hours missing.
+  EnergyHistory g;
+  g.advance(at(10, 30));
+  g.set_closed(at(9), 0.5, 500.0);
   g.set_live(500.5);
-  g.advance(at(1, 14, 0, 5));  // 3+ hours later
-  CHECK(std::isnan(g.bar(10)));  // not the 4-hour difference
-  CHECK(g.current_hour() == 14);
-
-  // Day change: today starts empty; the last hour of the old day only gives the counter base.
-  EnergyDay d = make();
-  d.advance(at(1, 23, 30));
-  d.set_closed(at(1, 22), 1.0, 1999.0);  // base for hour 23
-  d.set_live(2000.5);
-  CHECK(near(d.bar(23), 1.5f));
-  CHECK(d.advance(at(2, 0, 0, 10)));
-  CHECK(d.current_hour() == 0);
-  CHECK(std::isnan(d.bar(5)));  // not reached
-  CHECK(near(d.bar(0), 0.0f) && near(d.today_total(), 0.0f));  // the open hour starts at the rollover counter
-  d.set_closed(at(1, 23), 1.1, 2000.6);  // yesterday's hour is not kept, its end counter is the base
-  CHECK(std::isnan(d.bar(23)));
-  d.set_live(2000.9);
-  CHECK(near(d.bar(0), 0.3f));
-  // After a gap of more than a day nothing is known either.
-  d.advance(at(5, 8, 0, 5));
-  CHECK(std::isnan(d.bar(0)) && near(d.today_total(), 0.0f));  // only the open hour is known
+  CHECK(g.advance(at(14, 0, 5)));  // hours 10..13 closed without the device seeing their ends
+  for (size_t i = NOW - 4; i < NOW; i++)
+    CHECK(std::isnan(g.point(i)));
+  CHECK(near(g.point(NOW - 5), 0.5f));  // hour 9 kept, shifted
+  CHECK(near(g.point(NOW), 0.0f));
+  // A gap longer than the window clears it.
+  g.advance(at(80));
+  CHECK(std::isnan(g.point(0)) && std::isnan(g.point(NOW - 1)));
 
   // Axis maximum.
   CHECK(nice_axis_max(NAN) == 1.0f && nice_axis_max(0.2f) == 1.0f && nice_axis_max(1.0f) == 1.0f);
@@ -130,10 +97,14 @@ int main() {
   char b[24];
   format_kwh(NAN, b, sizeof b);
   CHECK(std::strcmp(b, "--") == 0);
+  format_kwh(0.423f, b, sizeof b);
+  CHECK(std::strcmp(b, "0.42") == 0);
+  format_kwh(0.0f, b, sizeof b);
+  CHECK(std::strcmp(b, "0.00") == 0);
+  format_kwh(9.999f, b, sizeof b);
+  CHECK(std::strcmp(b, "10.0") == 0);
   format_kwh(12.34f, b, sizeof b);
   CHECK(std::strcmp(b, "12.3") == 0);
-  format_kwh(0.0f, b, sizeof b);
-  CHECK(std::strcmp(b, "0.0") == 0);
   format_kwh(123.4f, b, sizeof b);
   CHECK(std::strcmp(b, "123") == 0);
 

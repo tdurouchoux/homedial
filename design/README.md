@@ -14,7 +14,7 @@ Every metric is one of three kinds. The kind decides what the ring means and whe
 | Kind | Examples | Ring | Colour |
 | --- | --- | --- | --- |
 | Status | Temperature, humidity, CO2, PM2.5 (each in a room) | Fills 0 to 100% of the sensor range | Ring and status label follow `ok`, `warn`, `danger` |
-| Consumption | Power now; energy today | Power: 0 to the contract limit. Energy (child of Electricity): 24 hourly bars, no ring | Power turns `warn` at 80% of the limit and `danger` at 100%. Energy bars stay neutral (`line`, `accent`) except bars above a limit, which are `warn` with a dashed line |
+| Consumption | Power now; energy per hour | Power: 0 to the contract limit. Energy (child of Electricity): hourly bars over the last 24 h, no ring | Power turns `warn` at 80% of the limit and `danger` at 100%. Energy bars stay neutral (`line`, `accent`) except bars above a limit, which are `warn` with a dashed line |
 | Information | Weather now, hourly forecast | Weather now: arc = rain left (0 to 6 h), when raining | `accent` only. A provider's weather warning is a WARN or ALERT status label, nothing else on weather is a state colour |
 
 Weather and power (and energy) follow the anatomy of the Sensor page (names on top, hero value, unit or condition word, one status or hint line, PageDots below), without a room line.

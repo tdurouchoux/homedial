@@ -61,9 +61,9 @@ dial_ui:
   power:
     sensor: power_now
     contract_limit: 6000W   # 6 kVA contract (spec.md); WARN from 80 %, ALERT from 100 %
-    # Energy today: child page of Electricity (press / swipe up). Hourly kWh bars from HA's
-    # statistics of the cumulative counter (kWh, state_class total_increasing). Fetched at
-    # connect and once an hour. Needs "Allow the device to perform Home Assistant actions".
+    # Energy: child page of Electricity (press / swipe up). kWh per hour over the last 24 h, from
+    # HA's statistics of the cumulative counter (state_class total_increasing). Fetched at connect
+    # and once an hour. Needs "Allow the device to perform Home Assistant actions".
     energy:
       sensor: energy_total
       on_request:
@@ -75,8 +75,10 @@ dial_ui:
               ids: !lambda return ids;
             data_template:
               types: "{{ ['change', 'state'] }}"
+              # HA converts the statistics to kWh whatever the entity's unit (Wh, kWh, MWh).
+              units: "{{ {'energy': 'kWh'} }}"
               statistic_ids: "{{ ids.split(',') }}"
-              # Today 00:00 local is at most 24 h (+1 h on a DST day) before now.
+              # The 24 closed hours of the window, plus margin.
               start_time: "{{ (now() - timedelta(hours=26)).isoformat() }}"
             capture_response: true
             # Compact the answer to [[hour_epoch, change_kwh, end_counter_or_null], ...]. HA leaves a key

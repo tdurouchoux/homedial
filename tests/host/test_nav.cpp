@@ -115,7 +115,7 @@ int main() {
   r = nav_apply(power, NavAction::BACK, wp, &before);
   CHECK(r.page.kind == PageKind::SETTINGS && before == power);
   CHECK(carousel_size(wp) == 4 && carousel_index(power, wp) == 3);
-  // Electricity's child, Energy today (YAML `power: energy:`): press or swipe up opens it,
+  // Electricity's child, Energy (YAML `power: energy:`): press or swipe up opens it,
   // only back leaves it, and Settings is not reachable from it.
   NavShape wpe = wp;
   wpe.has_energy = true;

@@ -37,7 +37,7 @@ struct NavShape {
   const uint8_t *history_mask{nullptr};
   bool has_weather{false};  // Weather now joins the carousel after the rooms (YAML `weather:`)
   bool has_power{false};    // Electricity is the last carousel page (YAML `power:`)
-  bool has_energy{false};   // Electricity has a child, Energy today (YAML `power: energy:`)
+  bool has_energy{false};   // Electricity has a child, Energy (YAML `power: energy:`)
 };
 
 // Carousel (level 0): rooms, then Weather now, then Electricity (spec.md).
@@ -78,7 +78,7 @@ inline NavResult nav_apply(const Page &cur, NavAction a, const NavShape &shape, 
         r.page = Page{PageKind::FORECAST, 0, 0};  // hourly forecast
         r.slide = Slide::UP;
       } else if (a == NavAction::OPEN && cur.kind == PageKind::POWER) {
-        if (shape.has_energy) {  // Energy today is the only child of Electricity
+        if (shape.has_energy) {  // Energy is the only child of Electricity
           r.page = Page{PageKind::ENERGY, 0, 0};
           r.slide = Slide::UP;
         }
