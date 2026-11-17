@@ -34,6 +34,15 @@
 
 namespace esphome::dial_ui {
 
+// Buzzer tone per encoder interaction (tones in dial_ui.cpp TONE_HZ).
+enum class Tone : uint8_t {
+  PAGE,   // turn: switch page, move the focus, change a value
+  DOWN,   // short press: go down / open / save
+  UP,     // long press: go up / back / cancel
+  SCRUB,  // turn through a graph history or the hourly forecast
+};
+
+
 class DialUi : public Component, public Parented<lvgl::LvglComponent> {
  public:
   // ---- Codegen (packages/ui.yaml -> __init__.py) ----
@@ -108,7 +117,7 @@ class DialUi : public Component, public Parented<lvgl::LvglComponent> {
   void apply_luminosity_(int percent);
   int current_luminosity_() const;
   void update_sleep_();
-  void tick_();
+  void tick_(Tone tone = Tone::PAGE);
   void apply_pitch_(int hz);
   void save_settings_();
   void activate_row_(SettingsRow row);

@@ -35,7 +35,7 @@ class ScreenSettings {
   lv_obj_t *thumb_{nullptr};
   Slot slots_[3];  // previous, focused, next
   size_t focus_{0};
-  int values_[SETTINGS_ROWS]{-1, -1, -1, -1, -1, -1};
+  int values_[SETTINGS_ENUM_COUNT]{-1, -1, -1, -1, -1, -1};
 };
 
 }  // namespace esphome::dial_ui

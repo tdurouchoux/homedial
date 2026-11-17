@@ -11,6 +11,10 @@ namespace esphome::dial_ui {
 
 static const char *const TAG = "dial_ui";
 static constexpr uint32_t TICK_MS = 6;              // encoder tick length
+// Buzzer tone per encoder interaction (user, 2026-11-17). With EVENT_TONES false the tick uses the
+// Settings pitch instead (the Pitch row is hidden while this is true, see model_settings.h).
+static constexpr bool EVENT_TONES = true;
+static constexpr int TONE_HZ[] = {1000, 1500, 500, 2000};  // indexed by Tone
 static constexpr uint32_t POWER_OFF_GRACE_MS = 1000;  // still running after this: on USB
 struct SettingsPrefs {
   uint8_t luminosity;
@@ -755,10 +759,18 @@ void DialUi::on_event_(lv_event_t *e) {
       return;
     this->swallow_encoder_click_ = 0;
   }
-  // Encoder tick (user: encoder only, not touch). On Adjust the KEY tick plays after the change.
+  // Encoder sounds (user: encoder only, not touch), one tone per interaction. A turn ticks at once;
+  // a press ticks on release (short, go down) or at 600 ms (long, go up), since the press-down
+  // cannot tell which it will be. On Adjust the KEY tick plays after the change.
   bool adjusting_key = this->page_.kind == PageKind::ADJUST && code == LV_EVENT_KEY;
-  if (from_encoder && (code == LV_EVENT_KEY || code == LV_EVENT_PRESSED) && !adjusting_key)
-    this->tick_();
+  if (from_encoder && code == LV_EVENT_KEY && !adjusting_key) {
+    PageKind k = this->page_.kind;
+    this->tick_(k == PageKind::HISTORY || k == PageKind::ENERGY || k == PageKind::FORECAST ? Tone::SCRUB : Tone::PAGE);
+  } else if (from_encoder && code == LV_EVENT_SHORT_CLICKED) {
+    this->tick_(Tone::DOWN);
+  } else if (from_encoder && code == LV_EVENT_LONG_PRESSED) {
+    this->tick_(Tone::UP);
+  }
 
   if ((this->page_.kind == PageKind::SETTINGS || this->page_.kind == PageKind::ADJUST) &&
       this->settings_event_(e, code, from_encoder))
@@ -1178,9 +1190,11 @@ void DialUi::apply_pitch_(int hz) {
     this->buzzer_->update_frequency(static_cast<float>(hz));  // LEDC: changes the PWM frequency
 }
 
-void DialUi::tick_() {
+void DialUi::tick_(Tone tone) {
   if (this->buzzer_ == nullptr)
     return;
+  if (EVENT_TONES)
+    this->apply_pitch_(TONE_HZ[static_cast<size_t>(tone)]);
   // On the buzzer's Adjust page the tick previews the value being edited.
   int vol = (this->page_.kind == PageKind::ADJUST &&
              static_cast<SettingsRow>(this->page_.index) == SettingsRow::BUZZER)

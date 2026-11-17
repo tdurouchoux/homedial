@@ -7,12 +7,17 @@
 
 namespace esphome::dial_ui {
 
-enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, BUZZER_PITCH, SCREEN_OFF, POWER_OFF, EXIT };
-constexpr size_t SETTINGS_ROWS = 6;
+// BUZZER_PITCH is deactivated for now (the buzzer plays a fixed tone per interaction, see
+// dial_ui.cpp EVENT_TONES): it sits after the listed rows, so the list has SETTINGS_ROWS rows and
+// the Pitch row never shows. To bring it back, move it between BUZZER and SCREEN_OFF again,
+// set SETTINGS_ROWS to SETTINGS_ENUM_COUNT, and set EVENT_TONES to false.
+enum class SettingsRow : uint8_t { LUMINOSITY, BUZZER, SCREEN_OFF, POWER_OFF, EXIT, BUZZER_PITCH };
+constexpr size_t SETTINGS_ENUM_COUNT = 6;  // every row, listed or not
+constexpr size_t SETTINGS_ROWS = 5;        // rows shown in the list (BUZZER_PITCH is not)
 
 inline const char *settings_label(SettingsRow r) {
   // "Pitch", not "Buzzer pitch": with its value ("6000Hz") it must fit the 144 px inside a row (user).
-  static const char *const L[SETTINGS_ROWS] = {"Luminosity", "Buzzer vol.", "Pitch", "Screen off", "Power off", "Exit"};
+  static const char *const L[SETTINGS_ENUM_COUNT] = {"Luminosity", "Buzzer vol.", "Screen off", "Power off", "Exit", "Pitch"};
   return L[static_cast<size_t>(r)];
 }
 
