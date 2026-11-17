@@ -38,6 +38,7 @@ class ScreenSensor {
   size_t room_index() const { return this->room_index_; }
   size_t index() const { return this->index_; }
   lv_obj_t *screen() const { return this->screen_; }
+  lv_obj_t *value_obj() const { return this->value_; }  // tap target: opens History
 
  protected:
   lv_obj_t *screen_{nullptr};

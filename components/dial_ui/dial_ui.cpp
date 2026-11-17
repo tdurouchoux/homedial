@@ -788,6 +788,8 @@ void DialUi::on_event_(lv_event_t *e) {
         int slot = this->room_screens_[this->page_.room].slot_index(target);
         if (slot >= 0)
           this->open_metric_(this->page_.room, static_cast<size_t>(slot));  // tap on a reading
+      } else if (from_touch && this->page_.kind == PageKind::SENSOR && target == this->visible_sensor_()->value_obj()) {
+        this->nav_(NavAction::OPEN);  // tap on the value: History (only if the metric keeps history)
       }
       break;
     case LV_EVENT_LONG_PRESSED:

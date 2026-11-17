@@ -38,7 +38,7 @@ Settings (above the carousel):
 
 - One table is shared by encoder and touch; both reach every page.
 - **Sibling move** (encoder turn, swipe left/right): next or previous page at the same level. Level 0 stops at both ends. On Sensor pages it moves between the room's metrics.
-- **Deeper** (encoder press, swipe up, or a tap on the target): open the page's child. On a Room page, a tap on a reading opens that metric's Sensor page directly; a press opens the first metric.
+- **Deeper** (encoder press, swipe up, or a tap on the target): open the page's child. On a Room page, a tap on a reading opens that metric's Sensor page directly; a press opens the first metric. On a Sensor page, a tap on the value opens that metric's History (added 2026-11-17, user), when the metric has `history: true`.
 - **Back** (encoder long press 600 ms, swipe down): up one level. From an editor or a scrub it cancels.
 - **Leaving Settings** (decided 2026-11-15): Settings opens with a downward slide from above the carousel, so it closes with **swipe up** (the slide goes back up) or an encoder long press, and returns to the page you left. Swipe down does nothing on Settings. This differs from `design/README.md`, where swipe down is always back.
 - **Settings**: from level 0, the back gesture (long press, swipe down) or a 600 ms touch hold opens the Settings list.
